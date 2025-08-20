@@ -10,7 +10,8 @@ const {
     PermissionsBitField,
 } = require('discord.js')
 
-const db = require('quick.db');
+const { QuickDB } = require("quick.db");
+const db = new QuickDB();
 
 const { SlashCommandBuilder, userMention } = require('@discordjs/builders')
 
@@ -42,9 +43,15 @@ module.exports = {
          * @param {CommandInteraction} interaction
          */
         async slashexecute(bot, interaction) {
-          let serversetup = bot.db.get(`ServerSetup_${interaction.guild.id}`)
+          //let serversetup = await db.get(`ServerSetup_${interaction.guild.id}`)
             await interaction.deferReply({ephemeral: true});
-            if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`)
+            /*if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`).then(
+              setTimeout(() => {
+                  interaction.deleteReply().catch(() => {
+                      return;
+                  })
+              }, 10000)
+          )*/
             const username = interaction.options.getUser('username');
             const reason = interaction.options.getString('reason') || "No Reason Provided!";
             try {
@@ -64,14 +71,14 @@ module.exports = {
                       })
                   }, 10000)
                     )
-                  if (!interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                  if (!interaction.member.permissions.has([PermissionsBitField.Flags.ModerateMembers])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                       interaction.deleteReply().catch(() => {
                         return;
                       })
                   }, 10000)
                     )
-                  if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ModerateMembers)) return interaction.editReply(`:x: **ERROR** | I don't have permission to execute this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                  if (!interaction.guild.members.me.permissions.has([PermissionsBitField.Flags.ModerateMembers])) return interaction.editReply(`:x: **ERROR** | I don't have permission to execute this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                       interaction.deleteReply().catch(() => {
                         return;
@@ -92,14 +99,14 @@ module.exports = {
                       })
                   }, 10000)
                     )
-                    if (interaction.guild.members.me.roles.highest.position < user.roles.highest.position) return interaction.editReply(`:x: **ERROR** | I can't Warn ${username} because they have higher permission levels over me!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                    if (interaction.guild.members.me.roles.highest.position <= user.roles.highest.position) return interaction.editReply(`:x: **ERROR** | I can't Warn ${username} because they have higher permission levels over me!\n**This message will Auto-Delete in 10 seconds!**`).then(
                       setTimeout(() => {
                           interaction.deleteReply().catch(() => {
                             return;
                           })
                       }, 10000)
                   )
-                  if (interaction.member.roles.highest.position < user.roles.highest.position) return interaction.editReply(`:x: **ERROR** | You can't Warn ${username} because they are a Higher Rank than you!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                  if (interaction.member.roles.highest.position <= user.roles.highest.position) return interaction.editReply(`:x: **ERROR** | You can't Warn ${username} because they are a Higher Rank than you!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                         interaction.deleteReply().catch(() => {
                           return;
@@ -107,9 +114,26 @@ module.exports = {
                     }, 10000)
                 )
 
-            bot.db.set(`userWarnings_${interaction.guild.id}_${username.id}.userid`, interaction.member.id)
-          bot.db.add(`userWarnings_${interaction.guild.id}_${username.id}.warnings`, 1);
-          bot.db.push(`userWarnings_${interaction.guild.id}_${username.id}.reasons`, reason);
+                function Generate() {
+                  let tokenID = [];
+                  let randomstuff = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+                  for (let x = 1; x <= 10; x++) {
+                  tokenID.push(randomstuff[Math.floor(Math.random() * randomstuff.length)]);
+                  }
+                  return tokenID.join('');
+                   }
+                   const string = Generate();
+
+              await db.set(`userWarnings_${interaction.guild.id}_${username.id}_${string}`, { warningid: string, moderator: interaction.member.user.id, reason: reason});
+          
+          let warningIds = await db.get(`userWarnings_${interaction.guild.id}_${username.id}`);
+          // Ensure it's an array
+if (!Array.isArray(warningIds)) {
+  warningIds = [];
+}
+          warningIds.push(string);
+          await db.set(`userWarnings_${interaction.guild.id}_${username.id}`, warningIds);
+          
                 interaction.editReply({ content: `:white_check_mark: **SUCCESS** | Successfully Warned **${username}** in the ${interaction.guild.name} Server!\n**This message will Auto-Delete in 10 seconds!**`,
             }).then(
             setTimeout(() => {
@@ -121,7 +145,7 @@ module.exports = {
               let embed = new EmbedBuilder()
                   .setColor("Yellow")
                   .setTitle(`**Moderation Report**`)
-                  .setDescription(`**Username:**\n${username.username}\n**Discriminator:**\n${username.discriminator}\n**User Tag:**\n${username.tag}\n**User Mention:**\n${username}\n**UserId:**\n${username.id}\n**Moderation Type:**\nWarn\n**Reason:**\n${reason}\n**Moderator:**`)
+                  .setDescription(`**Username:**\n${username.username}\n**Discriminator:**\n${username.discriminator}\n**User Mention:**\n${username}\n**UserId:**\n${username.id}\n**Moderation Type:**\nWarn\n**Reason:**\n${reason}\n**Moderator:**`)
                   .setAuthor({ name: username.username, iconURL: username.displayAvatarURL()})
                   .setFooter({ text: `${interaction.member.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: interaction.member.user.displayAvatarURL() })
                   .setTimestamp(Date.now());
@@ -131,6 +155,11 @@ module.exports = {
                       return;
                     })
                 }, 5000)
+            })
+            username.send({ embeds: [embed] }).catch(function(error) {
+              if (error) {
+                interaction.editReply({ content: `:x: **ERROR** | Failed to Send a DM to **${username}** in the ${interaction.guild.name} Server!\n**This message will Auto-Delete in 10 seconds!**`})
+              }
             })
                   } else {
                 interaction.editReply({ content: `:x: **ERROR** | Failed to Warn **${username}** in the ${interaction.guild.name} Server!\n**This message will Auto-Delete in 10 seconds!**`,

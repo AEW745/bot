@@ -16,7 +16,8 @@ const {
 
 const noblox = require('noblox.js')
 require('dotenv').config();
-const db = require('quick.db');
+const { QuickDB } = require("quick.db");
+const db = new QuickDB();
 const { SlashCommandBuilder } = require('@discordjs/builders')
 
 module.exports = {
@@ -41,15 +42,23 @@ module.exports = {
          * @param {CommandInteraction} interaction
          */
         async slashexecute(bot, interaction) {
-            let serversetup = bot.db.get(`ServerSetup_${interaction.guild.id}`)
+            let serversetup = await db.get(`ServerSetup_${interaction.guild.id}`)
             await interaction.deferReply({ephemeral: true});
-            if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`)
+            if (!serversetup) return interaction.editReply(`**:x: ERROR** | This a ROBLOX Command. Roblox Commands haven't been setup! Please ask the Owner to setup the bot for Roblox Commands!`).then(
+              setTimeout(() => {
+                  interaction.deleteReply().catch(() => {
+                      return;
+                  })
+              }, 10000)
+          )
             const username = interaction.options.getString('rblxusername');
             const discorduser = interaction.options.getUser('discordusername');
         const member = await interaction.guild.members.fetch(discorduser.id);
             try {
-                let groupid = bot.db.get(`ServerSetup_${interaction.guild.id}.groupid`)
-                await noblox.setCookie(bot.db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`))
+                let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
+                await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
+                    console.log(err.message)
+                })
                 let id;
             let rank;
             try {
@@ -79,9 +88,8 @@ module.exports = {
                     .setDescription(`Verification has been removed from ${username}`)
                     .setFooter({ text: `They will need to verify again! | This message will Auto-Delete in 5 seconds!`, })
                     .setTimestamp(Date.now())
-                    console.log(member.id)
-                    bot.db.delete(`RobloxInfo_${interaction.guild.id}_${member.id}`)
-                    bot.db.delete(`Verification_${interaction.guild.id}_${member.id}_${id}`);
+                    await db.delete(`RobloxInfo_${interaction.guild.id}_${member.user.id}`)
+                    await db.delete(`Verification_${interaction.guild.id}_${id}`);
                     interaction.channel.send({ embeds: [embed4]}).then(message => {
                         setTimeout(() => {
                           message.delete().catch(() => {
@@ -89,14 +97,29 @@ module.exports = {
                           })
                       }, 5000)
                 })
-                 let findRole = "Verified"
-                 let findRole2 = role1.name
-                 const role = await interaction.guild.roles.cache.find(r => r.name.includes(findRole))
-                 const role2 = await interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
-                 if (member && role && role2) {
-                 await member.roles.remove(role.id);
-                 await member.roles.remove(role2.id);
-                 }
+                let findRole = "Verified"
+                let findRole2 = role1.name
+                const role = await interaction.guild.roles.cache.find(r => r.name.includes(findRole))
+                const role2 = await interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
+                const botHighestRole = interaction.guild.members.me.roles.highest;
+                if (member && role && role2) {
+                  const rolesToRemove = [];
+              
+                  // Check if the member has the roles
+                  if (member.roles.cache.has(role.id) && role.position < botHighestRole.position) {
+                      rolesToRemove.push(role.id);
+                  }
+              
+                  if (member.roles.cache.has(role2.id) && role2.position < botHighestRole.position) {
+                      rolesToRemove.push(role2.id);
+                  }
+              
+                  // Remove roles if there are any to remove
+                  if (rolesToRemove.length > 0) {
+                      await member.roles.remove(rolesToRemove);
+                  }
+              }
+              
                  
                 } else {
                     interaction.editReply({ content: `:x: **ERROR** | Failed to un-force verify ${username}\n**This message will Auto-Delete in 10 seconds!**`}).then(

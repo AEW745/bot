@@ -10,6 +10,8 @@ const {
 const noblox = require('noblox.js')
 require('dotenv').config();
 const { SlashCommandBuilder } = require('@discordjs/builders')
+const { QuickDB } = require("quick.db");
+const db = new QuickDB();
 
 module.exports = {
     name: 'Demote',
@@ -29,16 +31,24 @@ module.exports = {
          * @param {CommandInteraction} interaction
          */
         async slashexecute(bot, interaction) {
-            let serversetup = bot.db.get(`ServerSetup_${interaction.guild.id}`)
+            let serversetup = await db.get(`ServerSetup_${interaction.guild.id}`)
             await interaction.deferReply({ephemeral: true});
-            if (!serversetup) return interaction.editReply(`**:x: ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`)
+            if (!serversetup) return interaction.editReply(`**:x: ERROR** | This a ROBLOX Command. Roblox Commands haven't been setup! Please ask the Owner to setup the bot for Roblox Commands!`).then(
+                setTimeout(() => {
+                    interaction.deleteReply().catch(() => {
+                        return;
+                    })
+                }, 10000)
+            )
             const username = interaction.options.getString('username');
             try {
-                let groupid = bot.db.get(`ServerSetup_${interaction.guild.id}.groupid`)
-                await noblox.setCookie(bot.db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`))
-                let minrank = bot.db.get(`ServerSetup_${interaction.guild.id}.minrank`)
-                let userinfo = bot.db.get(`RobloxInfo_${interaction.guild.id}_${interaction.member.id}.robloxid`)
-                let currentuser = bot.db.get(`RobloxInfo_${interaction.guild.id}_${interaction.member.id}.robloxusername`)
+                let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
+                await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
+                    console.log(err.message)
+                })
+                let minrank = await db.get(`ServerSetup_${interaction.guild.id}.minrank`)
+                let userinfo = await db.get(`RobloxInfo_${interaction.guild.id}_${interaction.member.id}.robloxid`)
+                let currentuser = await db.get(`RobloxInfo_${interaction.guild.id}_${interaction.member.id}.robloxusername`)
                 if (!(userinfo && currentuser)) return interaction.editReply({ content: `**ERROR** | You and ${username} must be Verified to run this command!\n**This message will Auto-Delete in 10 seconds!**`}).then(
                     setTimeout(() => {
                         if (interaction) {
@@ -92,7 +102,7 @@ module.exports = {
                     }, 10000)
                 )
             }
-                const groupbot = await noblox.getCurrentUser("UserID")
+                const groupbot = (await noblox.getAuthenticatedUser()).id
                 const botrank = await noblox.getRankInGroup(groupid, groupbot)
                 const botrole = await noblox.getRole(groupid, botrank)
                 const MaxRankbelowBot = botrole.rank - 1;
@@ -105,8 +115,8 @@ module.exports = {
             let member_ids = users.map(m => m.user.id);
             member_ids.forEach(consoleItem)
             async function consoleItem(item, index, arr) {
-                let users = bot.db.get(`RobloxInfo_${interaction.guild.id}_${item}.robloxusername`)
-                let members = bot.db.get(`RobloxInfo_${interaction.guild.id}_${item}.discordid`)
+                let users = await db.get(`RobloxInfo_${interaction.guild.id}_${item}.robloxusername`)
+                let members = await db.get(`RobloxInfo_${interaction.guild.id}_${item}.discordid`)
                 if (username == users) {
                 const person = await interaction.guild.members.fetch(members)
                 let findRole = newrole.name
@@ -114,9 +124,25 @@ module.exports = {
                 const role3 = await interaction.guild.roles.cache.find(r => r.name.includes(findRole))
                 const role4 = await interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
                 if (!(id === userinfo) && (role.rank) > 1 && (role.rank) <= userrunningcommand){
-                    if (role3 && role4) {
-                await person.roles.add(role3.id);
-                await person.roles.remove(role4.id);
+                    if (person && role3 && role4) {
+                        const rolesToAdd = [];
+                        const rolesToRemove = [];
+                    
+                        // Collect roles to add and remove
+                        if (role3) {
+                            rolesToAdd.push(role3.id);
+                        }
+                        if (role4) {
+                            rolesToRemove.push(role4.id);
+                        }
+                    
+                        // Perform role updates
+                        if (rolesToAdd.length > 0) {
+                            await person.roles.add(rolesToAdd);
+                        }
+                        if (rolesToRemove.length > 0) {
+                            await person.roles.remove(rolesToRemove);
+                        }
                     }
                 } else {
                     interaction.editReply({content: `Failed to Demote **${username}**\n**This message will Auto-Delete in 10 seconds!**`,}).then(
@@ -129,9 +155,6 @@ module.exports = {
                 }
                 }
             }
-                let group = await noblox.getGroup(groupid);
-                let groupName = group.name;
-                let groupOwner = group.owner.username;
               let avatar = await noblox.getPlayerThumbnail(id, "48x48", "png", true, "headshot");
       let avatarurl = avatar[0].imageUrl;
                 if ((role.rank) > 1 && (role.rank) <= MaxRankbelowBot && userrunningcommand > MinRank && !(id === userinfo)) {
@@ -142,9 +165,6 @@ module.exports = {
                   .setAuthor({ name: username, iconURL: avatarurl })
                   .setFooter({ text: `${interaction.member.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: interaction.member.user.displayAvatarURL() })
                   .setTimestamp(Date.now());
-                  noblox.message(id, `${groupName} Demotion`, `Hello ${username}, You have been Demoted in ${groupName} to ${newrole.name} from ${role.name}! If you have any questions please contact ${groupOwner} or the Co-Owners of the Group.`).catch((err) => {
-                    console.log(err.message)
-                  })
                 noblox.demote(groupid, id)
                 interaction.editReply({ content: `Successfully Demoted **${username}**\n**This message will Auto-Delete in 10 seconds!**`,
             }).then(

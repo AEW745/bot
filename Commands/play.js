@@ -8,8 +8,7 @@ const {
 } = require('discord.js')
 
 const { SlashCommandBuilder } = require('@discordjs/builders')
-const { QueryType, useMainPlayer, useQueue } = require('discord-player')
-
+const { QueryType, Player, useQueue } = require('discord-player')
 module.exports = {
     name: 'Play',
     description: 'Plays music in the Discord Server!',
@@ -48,12 +47,8 @@ module.exports = {
          * @param {CommandInteraction} interaction
          */
         async slashexecute(bot, interaction) {
-            const player = useMainPlayer()
-            player.extractors.loadDefault()
-
-            let serversetup = bot.db.get(`ServerSetup_${interaction.guild.id}`)
-            await interaction.deferReply({ephemeral: true});
-            if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`)
+            const player = bot.player;
+             //console.log(player.scanDeps());player.on('debug',console.log).events.on('debug',(_,m)=>console.log(m));
 
             const queue = player.nodes.create(interaction.guild, { metadata: interaction.channel,
 
@@ -80,6 +75,7 @@ module.exports = {
             let url2 = interaction.options.getString("playlist");
             let url3 = interaction.options.getString("search");
         try {
+          await interaction.deferReply()
             if (!interaction.member.voice.channel)
             return interaction.editReply({ content: `You must be in a Voice Channel to run this command!\n**This message will Auto-Delete in 10 seconds!**`, }).then(
                 setTimeout(() => {
@@ -91,11 +87,12 @@ module.exports = {
             if (!queue.connection) await queue.connect(interaction.member.voice.channel)
                 const embed = new EmbedBuilder()
                 if (interaction.options.getSubcommand() === "song") {
-                    const result = await bot.player.search(url, {
+                    const result = await player.search(url, {
                         requestedBy: interaction.user,
-                        searchEngine: QueryType.SPOTIFY_SONG
+                        searchEngine: QueryType.SOUNDCLOUD_SONG
                     })
-                    if (result.tracks.size === 0)
+                    //console.log(result.tracks)
+                    if (result.tracks.length === 0)
                     return interaction.editReply("No Results").then(
                         setTimeout(() => {
                           interaction.deleteReply().catch(() => {
@@ -112,20 +109,25 @@ module.exports = {
                   .setThumbnail(song.thumbnail)
                   .setFooter({ text: `Duration: ${song.duration}`})
                   .setTimestamp(Date.now())
-                  if (counter == 0) {
-                    queue.node.play()
+                  if (!queue.isPlaying()) {
+         await queue.node.play()
                 await interaction.editReply({
                     embeds: [embed]
-                })
+                }).then(
+    setTimeout(() => {
+      interaction.deleteReply().catch(() => {
+        return;
+      })
+  }, 5000)
+)
                 }
              } else if (interaction.options.getSubcommand() === "playlist") {
-                    const result = await bot.player.search(url2, {
+                    const result = await player.search(url2, {
                         requestedBy: interaction.user,
-                        searchEngine: QueryType.SPOTIFY_PLAYLIST
+                        searchEngine: QueryType.SOUNDCLOUD_PLAYLIST
                     })
 
-                    console.log(result)
-                    if (result.tracks.size === 0)
+                    if (result.playlist.tracks.length === 0)
                     return interaction.editReply("No Results").then(
                         setTimeout(() => {
                           interaction.deleteReply().catch(() => {
@@ -135,19 +137,33 @@ module.exports = {
                         )
 
                     const playlist = result.playlist
-                    await queue.addTracks(result.tracks)
+                    console.log(playlist.tracks.length)
+                    await queue.addTrack(playlist)
                   embed
                   .setTitle(`**Playlist Player**`)
-                  .setDescription(`**${result.tracks.size} songs from [${playlist.title}](${playlist.url})** have been added to the Queue`)
+                  .setDescription(`**${playlist.tracks.length} songs from [${playlist.title}](${playlist.url})** have been added to the Queue`)
                   .setThumbnail(playlist.thumbnail)
                   .setTimestamp(Date.now())
+                   if (!queue.isPlaying()) {
+         await queue.node.play()
+                await interaction.editReply({
+                    embeds: [embed]
+                }).then(
+    setTimeout(() => {
+      interaction.deleteReply().catch(() => {
+        return;
+      })
+  }, 5000)
+)
+                }
         } else if (interaction.options.getSubcommand() === "search") {
 
             const result = await player.search(url3, {
-                requestedBy: interaction.user,
-                searchEngine: QueryType.SPOTIFY_SEARCH
-            })
-            if (result.tracks.size === 0)
+                        requestedBy: interaction.user,
+                        searchEngine: QueryType.SOUNDCLOUD_SEARCH
+                    })
+
+            if (result.tracks.length === 0)
             return interaction.editReply({ content: `No Results\n**This message will Auto-Delete in 10 seconds!**`, }).then(
                 setTimeout(() => {
                   interaction.deleteReply().catch(() => {
@@ -157,7 +173,8 @@ module.exports = {
                 )
 
             const song = result.tracks[0]
-            await queue.addTrack(song)
+            console.log(song)
+           queue.addTrack(song)
             if (song) {
             embed
           .setTitle(`**Search Player**`)
@@ -168,14 +185,19 @@ module.exports = {
        
         }
 
-        player.events.on('emptyQueue', () => {
+        player.events.on('playerError', async(queue, error) => {
+          console.log(queue, error)
+        })
+
+        /*player.events.on('emptyQueue', () => {
             Promise.all([
             interaction.member.voice.channel.members.forEach((member) => { member.voice.disconnect() }),
             interaction.guild.members.me.voice.disconnect()
             ]);
-        })
+        })*/
 
      if (!queue.isPlaying()) {
+      console.log('song is playing')
          await queue.node.play()
      }
     await interaction.editReply({
@@ -190,7 +212,7 @@ module.exports = {
         }
     } catch (err) {
         console.log(err.message)
-        interaction.editReply({ content: `No Results\n**This message will Auto-Delete in 10 seconds!**`, }).then(
+        await interaction.editReply({ content: `No Results\n**This message will Auto-Delete in 10 seconds!**`, }).then(
         setTimeout(() => {
             interaction.deleteReply().catch(() => {
               return;

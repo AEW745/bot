@@ -10,6 +10,9 @@ const {
 const { SlashCommandBuilder } = require('@discordjs/builders')
 const openai = require("../utils/openAi");
 
+const { QuickDB } = require("quick.db");
+const db = new QuickDB();
+
 module.exports = {
     name: 'ChatGPT',
     description: 'Responds to messages using AI',
@@ -34,9 +37,7 @@ module.exports = {
          * @param {CommandInteraction} interaction
          */
         async slashexecute(bot, interaction) {
-            let serversetup = bot.db.get(`ServerSetup_${interaction.guild.id}`)
             await interaction.deferReply({ephemeral: false});
-            if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`)
             let message = interaction.options.getString('message')
         try {
             if (interaction.member.user.bot) return;
@@ -44,7 +45,7 @@ module.exports = {
             const messages = [
                 { 
                     role: "system", 
-                    content: "Search the web for answers to a user's question.",
+                    content: "MoneyDevsRanker is a smart bot.",
                 },
                 {
                     role: "user",
@@ -55,11 +56,18 @@ module.exports = {
             const completion = await openai.chat.completions.create({
                 model: 'gpt-3.5-turbo',
                 messages: messages,
-                temperature: 0.7,
+                temperature: 1,
                 max_tokens: 500,
-            });
-            console.log(completion)
-            const advice = `${completion.choices[0].message.content}\n\nThis is an automated message from Chat GPT.\n\nCredits: Epicwarrior(@AEW745)\n\nSincerely,\nEpicwarrior\nBot Creator`;
+            })
+            
+            if (completion.choices[0].finish_reason === 'length') return interaction.editReply(`:x: **ERROR** | Your message is too long to generate!`).then(
+                setTimeout(() => {
+                    interaction.deleteReply().catch(() => {
+                        return;
+                    })
+                }, 60000)
+            )
+            const advice = `${completion.choices[0].message.content}`;
             interaction.deleteReply()
             await interaction.channel.send(advice).then(message => {
                 setTimeout(() => {
@@ -70,8 +78,7 @@ module.exports = {
             }           
             )
     } catch (err) {
-        console.log(err.message)
-        interaction.editReply({ content: `:x: **ERROR** | Reached monthly limit for requests!`})
+        await interaction.editReply(`:x: **ERROR** | ${err.message}`)
     }
         },
 }

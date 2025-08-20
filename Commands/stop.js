@@ -9,6 +9,8 @@ const {
 
 const { SlashCommandBuilder } = require('@discordjs/builders')
 const { QueryType, useMainPlayer, useQueue } = require('discord-player')
+const { QuickDB } = require("quick.db");
+const db = new QuickDB();
 
 module.exports = {
     name: 'Stop',
@@ -30,10 +32,16 @@ module.exports = {
          * @param {CommandInteraction} interaction
          */
         async slashexecute(bot, interaction) {
-            let serversetup = bot.db.get(`ServerSetup_${interaction.guild.id}`)
+            //let serversetup = await db.get(`ServerSetup_${interaction.guild.id}`)
             await interaction.deferReply({ephemeral: true});
-            if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`)
-            const queue = useQueue(interaction.guildId);
+            /*if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`).then(
+                setTimeout(() => {
+                    interaction.deleteReply().catch(() => {
+                        return;
+                    })
+                }, 10000)
+            )*/
+            const queue = useQueue(interaction.guild);
         try {
            if (!queue)
             return await interaction.editReply({ content: `There aren't any songs currently in the Queue.\n**This message will Auto-Delete in 10 seconds!**`, }).then(
@@ -45,10 +53,10 @@ module.exports = {
                 )
             queue.node.stop()
             await interaction.editReply({ content: `Queue has cleared and current song has stopped! If you would like to play again use the **/play** command\n**This message will Auto-Delete in 5 seconds!**`, }).then(() => {
-                Promise.all([
-                interaction.member.voice.channel.members.forEach((member) => { member.voice.disconnect() }),
+                //Promise.all([
+                //interaction.member.voice.channel.members.forEach((member) => { member.voice.disconnect() }),
                 interaction.guild.members.me.voice.disconnect()
-                ]);
+                //]);
         }).then(
         setTimeout(() => {
             interaction.deleteReply().catch(() => {

@@ -16,7 +16,8 @@ const {
 
 const noblox = require('noblox.js')
 require('dotenv').config();
-const db = require('quick.db');
+const { QuickDB } = require("quick.db");
+const db = new QuickDB();
 const { SlashCommandBuilder } = require('@discordjs/builders')
 
 module.exports = {
@@ -37,17 +38,25 @@ module.exports = {
          * @param {CommandInteraction} interaction
          */
         async slashexecute(bot, interaction) {
-            let serversetup = bot.db.get(`ServerSetup_${interaction.guild.id}`)
+            let serversetup = await db.get(`ServerSetup_${interaction.guild.id}`)
             await interaction.deferReply({ephemeral: true});
-            if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`)
+            if (!serversetup) return interaction.editReply(`**:x: ERROR** | This a ROBLOX Command. Roblox Commands haven't been setup! Please ask the Owner to setup the bot for Roblox Commands!`).then(
+                setTimeout(() => {
+                    interaction.deleteReply().catch(() => {
+                        return;
+                    })
+                }, 10000)
+            )
             const username = interaction.options.getString('username');
             try {
                 let id;
                 let rank;
                 let role1;
                 try {
-                    let groupid = bot.db.get(`ServerSetup_${interaction.guild.id}.groupid`)
-                    await noblox.setCookie(bot.db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`))
+                    let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
+                    await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
+                        console.log(err.message)
+                    })
                     id = await noblox.getIdFromUsername(username)
                     rank = await noblox.getRankInGroup(groupid, id)
                     role1 = await noblox.getRole(groupid, rank)
@@ -69,17 +78,33 @@ module.exports = {
                       })
                 }, 5000)
                  )
-                 bot.db.delete(`RobloxInfo_${interaction.guild.id}_${interaction.member.id}`)
-                 bot.db.delete(`Verification_${interaction.guild.id}_${interaction.member.id}_${id}`)
-                 const member = await interaction.guild.members.fetch(interaction.member.id)
+                 await db.delete(`RobloxInfo_${interaction.guild.id}_${interaction.member.user.id}`)
+                 await db.delete(`Verification_${interaction.guild.id}_${id}`)
+                
                 let findRole = "Verified"
                 let findRole2 = role1.name
                 const role = await interaction.guild.roles.cache.find(r => r.name.includes(findRole))
                 const role2 = await interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
-                if (member && role && role2) {
-                await member.roles.remove(role.id);
-                await member.roles.remove(role2.id);
+                const botHighestRole = interaction.guild.members.me.roles.highest;
+
+                if (interaction.member && role && role2) {
+                    const rolesToRemove = [];
+                
+                    // Check if the member has the roles
+                    if (interaction.member.roles.cache.has(role.id) && role.position < botHighestRole.position) {
+                        rolesToRemove.push(role.id);
+                    }
+                
+                    if (interaction.member.roles.cache.has(role2.id) && role2.position < botHighestRole.position) {
+                        rolesToRemove.push(role2.id);
+                    }
+                
+                    // Remove roles if there are any to remove
+                    if (rolesToRemove.length > 0) {
+                        await interaction.member.roles.remove(rolesToRemove);
+                    }
                 }
+                
                 
                 } else {
                     await interaction.editReply({ content: `:x: **ERROR** | Failed to unverify your account! Please try again later!\n**This message will Auto-Delete in 10 seconds!**`}).then(

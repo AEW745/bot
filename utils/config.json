@@ -1,0 +1,60 @@
+{
+
+    "discordPlayer": {
+        "supportedFileExtensions": ["mp3", "m4a"],
+        "dailyReregister": false,
+        "logPlayerEvents": false,
+        "logQueueEvents": false,
+        "skipFFmpeg": false,
+        "ffmpegPath": null,
+        "globalPlayerNodeOptions": {
+            "disableSeeker": false,
+            "volume": 50,
+            "maxSize": 10000,
+            "bufferingTimeout": 15000,
+            "leaveOnStop": true,
+            "leaveOnStopCooldown": 5000,
+            "leaveOnEnd": true,
+            "leaveOnEndCooldown": 15000,
+            "leaveOnEmpty": true,
+            "leaveOnEmptyCooldown": 300000,
+            "skipOnNoStream": true
+        },
+        "extractors": {
+            "Soundcloud": {
+                "enabled": true,
+                "canStream": true,
+                "canBridge": true,
+                "priority": 10,
+                "config": {}
+            },
+            "Youtubei": {
+                "enabled": true,
+                "canStream": true,
+                "canBridge": true,
+                "priority": 11,
+                "config": {
+                    "client": "WEB",                   
+                    "highWaterMark": 2097152,                  
+                    "attemptYoutubeSearchEvenIfDisabled": {
+                        "usingEmbed": true,                    
+                        "usingScraping": false                 
+                    },
+                    "useServerAbrStream": false,               
+                    "usePoToken": true,                         
+                    "useOnesieRequests": false,               
+                    "useTVOAuthLogin": false,               
+                    "useCookie": true
+                }
+            }
+        },
+        "ffmpegFilters": {
+            "earrape": "earwax,equalizer=f=1000:t=q:w=1:g=48,bass=g=40,dynaudnorm=f=400",
+            "rickroll": "bass=g=33,apulsator=hz=0.06,vibrato=f=2.5,tremolo,asetrate=48000*0.8",
+            "8bit": "asetrate=22050*1.5,aresample=22050,volume=1.5",
+            "chipmunk": "atempo=1.5,asetrate=44100*1.25",
+            "lofi": "aecho=0.8:0.88:60:0.4,volume=0.5,asetrate=22050",
+            "8D": "apulsator=hz=0.08"
+        }
+    }
+}

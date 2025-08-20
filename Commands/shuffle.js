@@ -9,6 +9,8 @@ const {
 
 const { SlashCommandBuilder } = require('@discordjs/builders')
 const { QueryType, useMainPlayer, useQueue } = require('discord-player')
+const { QuickDB } = require("quick.db");
+const db = new QuickDB();
 
 module.exports = {
     name: 'Shuffle',
@@ -30,11 +32,17 @@ module.exports = {
          * @param {CommandInteraction} interaction
          */
         async slashexecute(bot, interaction) {
-            let serversetup = bot.db.get(`ServerSetup_${interaction.guild.id}`)
+            //let serversetup = await db.get(`ServerSetup_${interaction.guild.id}`)
             await interaction.deferReply({ephemeral: true});
-            if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`)
+            /*if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`).then(
+                setTimeout(() => {
+                    interaction.deleteReply().catch(() => {
+                        return;
+                    })
+                }, 10000)
+            )*/
             // Inside your slashexecute function
-const queue = useQueue(interaction.guildId);
+const queue = useQueue(interaction.guild);
 
 try {
     if (!queue)

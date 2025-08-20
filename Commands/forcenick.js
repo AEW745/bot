@@ -16,7 +16,8 @@ const {
 
 const noblox = require('noblox.js')
 require('dotenv').config();
-const db = require('quick.db');
+const { QuickDB } = require("quick.db");
+const db = new QuickDB();
 const { SlashCommandBuilder } = require('@discordjs/builders')
 
 module.exports = {
@@ -46,34 +47,40 @@ module.exports = {
          * @param {CommandInteraction} interaction
          */
         async slashexecute(bot, interaction) {
-            let serversetup = bot.db.get(`ServerSetup_${interaction.guild.id}`)
+            let serversetup = await db.get(`ServerSetup_${interaction.guild.id}`)
             await interaction.deferReply({ephemeral: true});
-            if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`)
+            if (!serversetup) return interaction.editReply(`**:x: ERROR** | This a ROBLOX Command. Roblox Commands haven't been setup! Please ask the Owner to setup the bot for Roblox Commands!`).then(
+                setTimeout(() => {
+                    interaction.deleteReply().catch(() => {
+                        return;
+                    })
+                }, 10000)
+            )
             const nickname = interaction.options.getString('nickname')
             const discorduser = interaction.options.getUser('discordusername');
-            const member = await interaction.guild.members.fetch(discorduser.id);4
+            const member = await interaction.guild.members.fetch(discorduser.id);
             if (nickname.length > 32) return interaction.editReply(`:x: **ERROR** | Their nickname is too long! Please choose Username or Displayname format!`)
             try {
                 if (!member) return interaction.editReply(`:x: **ERROR** | I was unable to find this user. Please make sure this user is in the server and the user is valid!\n**This message will Auto-Delete in 5 seconds!**`).then(
                     setTimeout(() => {
-                        if (interaction) {
-                            interaction.deleteReply()
-                        }
+                            interaction.deleteReply().catch(() => {
+                                return;
+                            })
                     }, 5000)
                 )
                 if (!member.manageable) return interaction.editReply(`:x: **ERROR** | Unable to change user's nickname. I can't change this user's nickname if they are a higher rank than me.\n**This message will Auto-Delete in 5 seconds!**`).then(
                     setTimeout(() => {
-                        if (interaction) {
-                      interaction.deleteReply()
-                        }
+                      interaction.deleteReply().catch(() => {
+                        return;
+                      })
                   }, 5000)
               )
                 member.setNickname(nickname)
                 interaction.editReply(`:white_check_mark: **SUCCESS** | I have successfully updated user's nickname!\n**This message will Auto-Delete in 5 seconds!**`).then(
                     setTimeout(() => {
-                        if (interaction) {
-                      interaction.deleteReply()
-                        }
+                      interaction.deleteReply().catch(() => {
+                        return;
+                      })
                   }, 5000)
                 )
 

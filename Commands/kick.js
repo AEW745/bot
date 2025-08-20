@@ -9,6 +9,8 @@ const {
 } = require('discord.js')
 
 const { SlashCommandBuilder } = require('@discordjs/builders')
+const { QuickDB } = require("quick.db");
+const db = new QuickDB();
 
 module.exports = {
     name: 'Kick',
@@ -38,36 +40,42 @@ module.exports = {
          * @param {CommandInteraction} interaction
          */
         async slashexecute(bot, interaction) {
-            let serversetup = bot.db.get(`ServerSetup_${interaction.guild.id}`)
-            let groupid = bot.db.get(`ServerSetup_${interaction.guild.id}.groupid`)
+            //let serversetup = await db.get(`ServerSetup_${interaction.guild.id}`)
+            let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
             await interaction.deferReply({ephemeral: true});
-            if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`)
+            /*if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`).then(
+                setTimeout(() => {
+                    interaction.deleteReply().catch(() => {
+                        return;
+                    })
+                }, 10000)
+            )*/
             const username = interaction.options.getUser('username');
             const reason = interaction.options.getString('reason') || "No Reason Provided!";
             try {
                 let user = interaction.guild.members.cache.get(username.id);
-                if (!interaction.member.permissions.has(PermissionsBitField.Flags.KickMembers) && !interaction.member.permissions.has(PermissionsBitField.Flags.Administrator) && !interaction.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                if (!interaction.member.permissions.has([PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                         interaction.deleteReply().catch(() => {
                             return;
                           })
                     }, 10000)
                 )
-                if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.KickMembers) && !interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.Administrator) && !interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageGuild)) return interaction.editReply(`:x: **ERROR** | I don't have permission to execute this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                if (!interaction.guild.members.me.permissions.has([PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | I don't have permission to execute this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                         interaction.deleteReply().catch(() => {
                             return;
                           })
                     }, 10000)
                 )
-                if (interaction.guild.members.me.roles.highest.position < user.roles.highest.position) return interaction.editReply(`:x: **ERROR** | I can't Kick ${username} because they have higher permission levels over me!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                if (interaction.guild.members.me.roles.highest.position <= user.roles.highest.position) return interaction.editReply(`:x: **ERROR** | I can't Kick ${username} because they have higher permission levels over me!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                         interaction.deleteReply().catch(() => {
                             return;
                           })
                     }, 10000)
                 )
-                if (interaction.member.roles.highest.position < user.roles.highest.position) return interaction.editReply(`:x: **ERROR** | You can't Kick ${username} because they are a Higher Rank than you!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                if (interaction.member.roles.highest.position <= user.roles.highest.position) return interaction.editReply(`:x: **ERROR** | You can't Kick ${username} because they are a Higher Rank than you!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                         interaction.deleteReply().catch(() => {
                             return;
@@ -98,14 +106,20 @@ module.exports = {
                 if (username && reason && interaction.options.getMember('username').kickable) {
                   let embed = new EmbedBuilder()
                   .setTitle(`**Moderation Report**`)
-                  .setDescription(`**Username:**\n${username.username}\n**Discriminator:**\n${username.discriminator}\n**User Tag:**\n${username.tag}\n**User Mention:**\n${username}\n**UserId:**\n${username.id}\n**Moderation Type:**\nKick from Discord Server\n**Reason:**\n${reason}\n**Moderator:**`)
+                  .setDescription(`**Username:**\n${username.username}\n**Discriminator:**\n${username.discriminator}\n**User Mention:**\n${username}\n**UserId:**\n${username.id}\n**Moderation Type:**\nKick from Discord Server\n**Reason:**\n${reason}\n**Moderator:**`)
                   .setColor('Red')
                   .setAuthor({ name: username.username, iconURL: username.displayAvatarURL() })
                   .setFooter({ text: `${interaction.member.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: interaction.member.user.displayAvatarURL() })
                   .setTimestamp(Date.now());
+                if (groupid) {
                 interaction.options.getMember('username').send({ content: `You have been kicked from ${interaction.guild.name} for **"${reason}"** *You may rejoin the server by clicking [Here](https://www.roblox.com/groups/${groupid}) and click the Discord link located in Social Links!*`}).then(() => {
-                interaction.options.getMember('username').kick(reason)
+                interaction.options.getMember('username').kick(reason) 
                 });
+                } else {
+                    interaction.options.getMember('username').send({ content: `You have been kicked from ${interaction.guild.name} for **"${reason}"**`}).then(() => {
+                    interaction.options.getMember('username').kick(reason) 
+                });
+                }
                 interaction.editReply({ content: `:white_check_mark: **SUCCESS** | Successfully Kicked **${username}** from the Server!\n**This message will Auto-Delete in 10 seconds!**`,
             }).then(
             setTimeout(() => {

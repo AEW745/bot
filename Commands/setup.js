@@ -16,7 +16,8 @@ const {
 
 const noblox = require('noblox.js')
 require('dotenv').config();
-const db = require('quick.db');
+const { QuickDB } = require("quick.db");
+const db = new QuickDB();
 const { SlashCommandBuilder } = require('@discordjs/builders')
 
 module.exports = {
@@ -44,7 +45,7 @@ module.exports = {
         const embed = new EmbedBuilder()
         .setTitle(`Setup Server!`)
         .setAuthor({ name: interaction.guild.name })
-        .setDescription(`This is the server setup menu. Please click the Setup Server button. (Adding Logs are optional.)`)
+        .setDescription(`This is the server setup menu. Please click the Setup Server button. (Adding Logs are optional.)\n\n**Make Sure you use the (/download) command to download all the Games that come with the bot!**`)
         .setColor(`Yellow`)
         interaction.editReply({ embeds: [embed], components: [ new ActionRowBuilder().addComponents( new ButtonBuilder().setCustomId('serversetup').setLabel('Setup Server').setEmoji('⚙️').setStyle(ButtonStyle.Success)).addComponents( new ButtonBuilder().setCustomId('setuplogs').setLabel('Setup Logs').setEmoji('📓').setStyle(ButtonStyle.Success)) ], ephemeral: true });
                 })

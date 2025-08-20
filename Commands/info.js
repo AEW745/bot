@@ -8,7 +8,9 @@ const {
 } = require('discord.js')
 
 const { SlashCommandBuilder } = require('@discordjs/builders')
-const { QueryType, useMainPlayer, useQueue } = require('discord-player')
+const { QueryType, Player, useQueue } = require('discord-player')
+const { QuickDB } = require("quick.db");
+const db = new QuickDB();
 
 module.exports = {
     name: 'Info',
@@ -30,15 +32,24 @@ module.exports = {
          * @param {CommandInteraction} interaction
          */
         async slashexecute(bot, interaction) {
-            const player = useMainPlayer()
-            let serversetup = bot.db.get(`ServerSetup_${interaction.guild.id}`)
-            await interaction.deferReply({ephemeral: true});
-            if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`)
-            const queue = useQueue(interaction.guildId);
+            const player = bot.player
+            //let serversetup = await db.get(`ServerSetup_${interaction.guild.id}`)
             try {
+                
+            const queue = useQueue(interaction.guild)
+            
+            /*if (!serversetup) return interaction.reply({ content: `:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`, ephemeral: true }).then(
+                setTimeout(() => {
+                    interaction.deleteReply().catch(() => {
+                        return;
+                    })
+                }, 10000)
+            )*/
+        
                 if (!queue) {
-                    return await interaction.editReply({
+                    return await interaction.reply({
                         content: `There aren't any songs currently in the Queue.\n**This message will Auto-Delete in 10 seconds!**`,
+                        ephemeral: true
                     }).then(
                         setTimeout(() => {
                             interaction.deleteReply().catch(() => {
@@ -47,7 +58,6 @@ module.exports = {
                         }, 10000)
                     );
                 }
-            
                 function createNewProgressBar() {
                     return queue.node.createProgressBar({
                         queue: false,
@@ -61,13 +71,16 @@ module.exports = {
             
                 let currentProgressBar; // Variable to store the current progress bar
             
+                await interaction.deferReply({ephemeral: false})
                 async function createAndLogProgressBar() {
                     currentProgressBar = createNewProgressBar();
-            
+    
                     const song = queue.currentTrack;
-            
+                    console.log(song)
                     if (song) {
                         const timeString = song?.duration; // Example: 12 minutes and 36 seconds
+                
+                        //await interaction.deleteReply()
 
                         await interaction.editReply({
                             embeds: [
@@ -78,7 +91,7 @@ module.exports = {
                                             currentProgressBar
                                     )
                                     .setFooter({
-                                        text: `This message will Auto-Delete in ${timeString}!`,
+                                        text: `This message will Auto-Delete at ${timeString}!`,
                                     }),
                             ],
                         });
@@ -89,15 +102,17 @@ module.exports = {
                     createAndLogProgressBar();
                 }, 1000); // Create a new progress bar every second
             
-                player.events.on('emptyQueue', () => {
-                        interaction.deleteReply().catch(() => {
+                player.events.on('playerFinish', async () => {
+                        if (!interaction) return;
+                        await interaction.deleteReply().catch(() => {
                             return;
                           })
                 });
             } catch (err) {
                 console.log(err.message);
-                interaction.editReply({
+                await interaction.reply({
                     content: `No Results\n**This message will Auto-Delete in 10 seconds!**`,
+                    ephemeral: true
                 });
                 setTimeout(() => {
                     interaction.deleteReply().catch(() => {

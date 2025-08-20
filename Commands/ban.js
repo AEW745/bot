@@ -3,15 +3,12 @@ const {
     Message,
     EmbedBuilder,
     CommandInteraction,
-    MessageActionRow,
-    MessageButton,
     PermissionsBitField,
-    ActionRowBuilder, 
-    ButtonBuilder, 
-    ButtonStyle
 } = require('discord.js')
 
 const { SlashCommandBuilder } = require('@discordjs/builders')
+const { QuickDB } = require("quick.db");
+const db = new QuickDB();
 
 module.exports = {
     name: 'Ban',
@@ -40,7 +37,7 @@ module.exports = {
          * @param {CommandInteraction} interaction
          */
         async slashexecute(bot, interaction) {
-            let serversetup = bot.db.get(`ServerSetup_${interaction.guild.id}`)
+            let serversetup = await db.get(`ServerSetup_${interaction.guild.id}`)
             await interaction.deferReply({ephemeral: true});
             if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`)
             const username = interaction.options.getUser('username')
@@ -50,14 +47,14 @@ module.exports = {
             .then(async members => {
                 let user = interaction.guild.members.cache.get(username.id);
                 let BannedId = members.find(member => member.user.id == username.id);
-                if (!interaction.member.permissions.has(PermissionsBitField.Flags.BanMembers) && !interaction.member.permissions.has(PermissionsBitField.Flags.Administrator) && !interaction.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                if (!interaction.member.permissions.has([PermissionsBitField.Flags.BanMembers, PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                         interaction.deleteReply().catch(() => {
                             return;
                           })
                     }, 10000)
                 )
-                if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.BanMembers) && !interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.Administrator) && !interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageGuild)) return interaction.editReply(`:x: **ERROR** | I don't have permission to execute this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                if (!interaction.guild.members.me.permissions.has([PermissionsBitField.Flags.BanMembers, PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | I don't have permission to execute this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                         interaction.deleteReply().catch(() => {
                             return;
