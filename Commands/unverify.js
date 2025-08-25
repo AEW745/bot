@@ -55,7 +55,7 @@ module.exports = {
                 try {
                     let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
                     await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
-                        console.log(err.message)
+                        console.log(err)
                     })
                     id = await noblox.getIdFromUsername(username)
                     rank = await noblox.getRankInGroup(groupid, id)
@@ -117,7 +117,7 @@ module.exports = {
                 }
 
             } catch (err) {
-                console.log(err.message)
+                console.log(err)
             }
         }
     }

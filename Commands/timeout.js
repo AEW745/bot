@@ -138,7 +138,7 @@ module.exports = {
         )
         }
             } catch (error) {
-                console.log(error.message)
+                console.log(error)
             }
         },
 }

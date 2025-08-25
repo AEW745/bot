@@ -59,7 +59,7 @@ module.exports = {
             try {
                 let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
                 await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
-                    console.log(err.message)
+                    console.log(err)
                 })
                 let minrank = await db.get(`ServerSetup_${interaction.guild.id}.minrank`)
                 let serverlogs = await db.get(`LogsSetup_${interaction.guild.id}.serverlogs`)
@@ -117,7 +117,7 @@ module.exports = {
                   .setTimestamp(Date.now());
                 if ((role.rank) <= MaxRankforExiling && userrunningcommand > MinRank && !(id === userinfo)) {
                 noblox.message(id, `${groupName} Exile`, `Hello ${username}, You have been Exiled in ${groupName} for ${reason}! If you have any questions please contact ${groupOwner} or Co-Owners of the Group.`).catch((err) => {
-                    console.log(err.message)
+                    console.log(err)
                   })
                 noblox.exile(groupid, id)
                 interaction.editReply({ content: `:white_check_mark: **SUCCESS** | Successfully Exiled **${username}** from the Roblox Group!\n**This message will Auto-Delete in 10 seconds!**`,
@@ -147,7 +147,7 @@ module.exports = {
         )
         }
             } catch (error) {
-                console.log(error.message)
+                console.log(error)
             }
         },
 }

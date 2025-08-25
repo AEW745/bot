@@ -34,7 +34,7 @@ module.exports = {
          */
         async slashexecute(bot, interaction) {
             //let serversetup = await db.get(`ServerSetup_${interaction.guild.id}`)
-            await interaction.deferReply({ephemeral: false});
+            await interaction.deferReply();
             /*if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`).then(
               setTimeout(() => {
                   interaction.deleteReply().catch(() => {
@@ -64,7 +64,7 @@ module.exports = {
                   })
                 }
             } catch (err) {
-                console.log(err.message)
+                console.log(err)
             }
         }
     }

@@ -102,8 +102,7 @@ module.exports = {
 
                 if (username && warnData.length > 0) {
                   if (WarningId) {
-                    console.log(WarningId)
-                    console.log(warnData)
+                   
                   if (!warnData.includes(WarningId)) return interaction.editReply(`:x: **ERROR** | \`${WarningId}\` doesn't exist! Please try a different warning ID or use ${'`/warnings`'} again!`)
           await db.delete(`userWarnings_${interaction.guild.id}_${username.id}_${WarningId}`);
         // Remove the warning ID from the warnData array

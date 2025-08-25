@@ -95,7 +95,7 @@ module.exports = {
                 try {
                     let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
                     await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
-                        console.log(err.message)
+                        console.log(err)
                     })
                     id = await noblox.getIdFromUsername(username)
                     rank = await noblox.getRankInGroup(groupid, id)
@@ -211,7 +211,7 @@ const collector = interaction.channel.createMessageComponentCollector(filter, { 
                   }, 5000)
               )
                 i.member.setNickname(nickname).catch((err) => {
-                    console.log(err.message)
+                    console.log(err)
                 })
             } else {
                 let embed2 = new EmbedBuilder()
@@ -276,7 +276,7 @@ setTimeout(async () => {
     await db.delete(`Verification_${interaction.guild.id}_${userId}`)
 }, 300000);
 });
-console.log(interaction.member.id)
+
 await db.set(`Verification_${interaction.guild.id}_${userId}`, { discordid: interaction.member.user.id, robloxid: userId });
 
 if (interaction.member.manageable) {
@@ -284,7 +284,7 @@ if (interaction.member.manageable) {
 }
 }
             } catch (err) {
-                console.log(err.message)
+                console.log(err)
             }
         }
     }

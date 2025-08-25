@@ -68,7 +68,7 @@ module.exports = {
             )
 
     } catch (err) {
-        console.log(err.message)
+        console.log(err)
         interaction.editReply({ content: `No Results\n**This message will Auto-Delete in 10 seconds!**`, }).then(
         setTimeout(() => {
             interaction.deleteReply().catch(() => {

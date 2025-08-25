@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, InteractionType } = require('discord.js');
 
 require('dotenv').config()
 
@@ -74,6 +74,657 @@ bot.on('ready', async() => {
     await registerExtractors(player);
     bot.player.extractors.register(SoundcloudExtractor)
 
+    bot.on('interactionCreate', async(interaction) => {
+  // Beginning of Auto-Complete
+            if (!interaction.isAutocomplete()) return
+  const serverData = await db.get(`ServerSetup_${interaction.guild.id}`)
+  const serverSettings = await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`) && await db.get(`ServerSetup_${interaction.guild.id}.groupid`) && await db.get(`ServerSetup_${interaction.guild.id}.minrank`)
+  if (!(serverData && serverSettings)) return;
+  try {
+  const RobloxGroup = serverData.groupid
+  const RobloxCookie = serverData.rblxcookie
+  if (interaction.commandName === 'rank') {
+    const focusedOption = interaction.options.getFocused(true);
+      if (focusedOption.name === 'rank') {
+      const groupInfo = await noblox.getGroup(RobloxGroup)
+      const rank = await noblox.getRankInGroup(RobloxGroup, groupInfo.owner.userId)
+      const ownerrole = await noblox.getRole(RobloxGroup, rank)
+      if (RobloxCookie) {
+      await noblox.setCookie(RobloxCookie, interaction.guild.id)
+      const groupbot = (await noblox.getAuthenticatedUser()).id
+      const botrank = await noblox.getRankInGroup(RobloxGroup, groupbot)
+      const botrole = await noblox.getRole(RobloxGroup, botrank)
+      const grouproles = await noblox.getRoles(RobloxGroup)
+      const focusedValue = interaction.options.getFocused();
+      values = ["Guest", botrole.name, ownerrole.name]
+      const filtered = grouproles.filter((role) => role.name.toLowerCase().startsWith(focusedValue.toLowerCase()) &&
+      !values.includes(role.name) &&
+      role.id !== botrole.id
+      );               
+      if (filtered) {
+      await interaction.respond(
+          filtered.slice(0, 25).map(role => ({ name: role.name, value: role.name })),
+      );
+      }
+    }
+  }
+
+  if (focusedOption.name === 'username') {
+      const focusedValue = focusedOption.value;
+      fetch(`https://www.roblox.com/users/profile?username=${focusedValue}`).then(r => {if (!r.ok) { return; }
+      if (r.status != 200) { return; }
+      if (r.status == 429) { return; }
+      return r.url.match(/\d+/)[0];
+  }).then(async id => {
+      const username = await noblox.getUsernameFromId(id)
+      const userId = await noblox.getIdFromUsername(username)
+      await interaction.respond([
+          {
+              name: `${username} (${userId})`,
+              value: username
+          }
+      ]);
+  }).catch(() => {
+      return;
+  })
+}
+}
+if (interaction.commandName === 'demote') {
+
+if (interaction.options.get('username')) {
+  const name = await interaction.options.get('username').value
+  fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; }
+  if (r.status != 200) { return; }
+  if (r.status == 429) { return; }
+  return r.url.match(/\d+/)[0];
+}).then(async id => {
+  const username = await noblox.getUsernameFromId(id)
+  const userId = await noblox.getIdFromUsername(username)
+  
+  await interaction.respond([
+      {
+          name: `${username} (${userId})`,
+          value: username
+      }
+  ]);
+}).catch(() => {
+  return;
+})
+}
+}
+if (interaction.commandName === 'promote') {
+
+if (interaction.options.get('username')) {
+  const name = await interaction.options.get('username').value
+  fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; }
+  if (r.status != 200) { return; }
+  if (r.status == 429) { return; }
+  return r.url.match(/\d+/)[0];
+}).then(async id => {
+  const username = await noblox.getUsernameFromId(id)
+  const userId = await noblox.getIdFromUsername(username)
+  await interaction.respond([
+      {
+          name: `${username} (${userId})`,
+          value: username
+      }
+  ]);
+}).catch(() => {
+  return;
+})
+}
+}
+if (interaction.commandName === 'forceverify') {
+
+const options = interaction.options;
+
+try {
+const name = options.get('rblxusername') ? options.get('rblxusername').value : options.get('nickname').value;
+
+const response = await fetch(`https://www.roblox.com/users/profile?username=${name}`)
+
+if (!response.ok || response.status !== 200 || response.status == 429) {
+    return;
+}
+
+const id = response.url.match(/\d+/)[0];
+const username = await noblox.getUsernameFromId(id)
+const userId = await noblox.getIdFromUsername(username)
+
+if (options.get('nickname')) {
+    const displayName = await noblox.getUserInfo(userId)
+    await interaction.respond([
+        { name: 'Display Name', value: displayName.displayName },
+        { name: 'Smart Name', value: `${displayName.displayName} (@${username})` },
+        { name: 'Username', value: username },
+    ]);
+} else if (options.get('rblxusername')) {
+    await interaction.respond([
+        { name: `${username} (${userId})`, value: username },
+    ]);
+}
+} catch (error) {
+return;
+}
+}
+if (interaction.commandName === 'unforceverify') {
+
+if (interaction.options.get('rblxusername')) {
+  const name = await interaction.options.get('rblxusername').value
+  fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; }
+  if (r.status != 200) { return; }
+  if (r.status == 429) { return; }
+  return r.url.match(/\d+/)[0];
+}).then(async id => {
+  const username = await noblox.getUsernameFromId(id)
+  const userId = await noblox.getIdFromUsername(username)
+  await interaction.respond([
+      {
+          name: `${username} (${userId})`,
+          value: username
+      }
+  ]);
+}).catch(() => {
+  return;
+})
+}
+}
+if (interaction.commandName === 'unverify') {
+
+if (interaction.options.get('username')) {
+  const name = await interaction.options.get('username').value
+  fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; }
+  if (r.status != 200) { return; }
+  if (r.status == 429) { return; }
+  return r.url.match(/\d+/)[0];
+}).then(async id => {
+  const username = await noblox.getUsernameFromId(id)
+  const userId = await noblox.getIdFromUsername(username)
+  await interaction.respond([
+      {
+          name: `${username} (${userId})`,
+          value: username
+      }
+  ]);
+}).catch(() => {
+  return;
+})
+}
+}
+if (interaction.commandName === 'verify') {
+const options = interaction.options;
+
+try {
+const name = options.get('username') ? options.get('username').value : options.get('nickname').value;
+
+const response = await fetch(`https://www.roblox.com/users/profile?username=${name}`);
+
+if (!response.ok || response.status !== 200 || response.status == 429) {
+    return;
+}
+
+const id = response.url.match(/\d+/)[0];
+const username = await noblox.getUsernameFromId(id)
+const userId = await noblox.getIdFromUsername(username)
+
+if (options.get('nickname')) {
+    const displayName = await noblox.getUserInfo(userId)
+    await interaction.respond([
+        { name: 'Display Name', value: displayName.displayName },
+        { name: 'Smart Name', value: `${displayName.displayName} (@${username})` },
+        { name: 'Username', value: username },
+    ]);
+} else if (options.get('username')) {
+    await interaction.respond([
+        { name: `${username} (${userId})`, value: username },
+    ]);
+}
+
+} catch (error) {
+return;
+}
+}
+
+if (interaction.commandName === 'setnick') {
+const options = interaction.options;
+
+try {
+const name = options.get('username') ? options.get('username').value : options.get('nickname').value;
+
+const response = await fetch(`https://www.roblox.com/users/profile?username=${name}`);
+
+if (!response.ok || response.status !== 200 || response.status == 429) {
+  return;
+}
+
+const id = response.url.match(/\d+/)[0];
+const username = await noblox.getUsernameFromId(id)
+const userId = await noblox.getIdFromUsername(username)
+
+if (options.get('nickname')) {
+  const displayName = await noblox.getUserInfo(userId)
+  await interaction.respond([
+      { name: 'Display Name', value: displayName.displayName },
+      { name: 'Smart Name', value: `${displayName.displayName} (@${username})` },
+      { name: 'Username', value: username },
+  ]);
+} else if (options.get('username')) {
+  await interaction.respond([
+      { name: `${username} (${userId})`, value: username },
+  ]);
+}
+} catch (error) {
+return;
+}
+}
+
+if (interaction.commandName === 'forcenick') {
+const options = interaction.options;
+
+try {
+const name = options.get('username') ? options.get('username').value : options.get('nickname').value;
+
+const response = await fetch(`https://www.roblox.com/users/profile?username=${name}`);
+
+if (!response.ok || response.status !== 200 || response.status == 429) {
+return;
+}
+
+const id = response.url.match(/\d+/)[0];
+const username = await noblox.getUsernameFromId(id)
+const userId = await noblox.getIdFromUsername(username)
+
+if (options.get('nickname')) {
+const displayName = await noblox.getUserInfo(userId)
+await interaction.respond([
+    { name: 'Display Name', value: displayName.displayName },
+    { name: 'Smart Name', value: `${displayName.displayName} (@${username})` },
+    { name: 'Username', value: username },
+]);
+} else if (options.get('username')) {
+await interaction.respond([
+    { name: `${username} (${userId})`, value: username },
+]);
+}
+} catch (error) {
+return;
+}
+}
+
+if (interaction.commandName === 'exile') {
+
+if (interaction.options.get('username')) {
+  const name = await interaction.options.get('username').value
+  fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; }
+  if (r.status != 200) { return; }
+  if (r.status == 429) { return; }
+  return r.url.match(/\d+/)[0];
+}).then(async id => {
+  const username = await noblox.getUsernameFromId(id)
+  const userId = await noblox.getIdFromUsername(username)
+  await interaction.respond([
+      {
+          name: `${username} (${userId})`,
+          value: username
+      }
+  ]);
+}).catch(() => {
+  return;
+})
+}
+}
+
+if (interaction.commandName === 'groupban') {
+
+  if (interaction.options.get('username')) {
+    const name = await interaction.options.get('username').value
+    fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; }
+    if (r.status != 200) { return; }
+    if (r.status == 429) { return; }
+    return r.url.match(/\d+/)[0];
+  }).then(async id => {
+    const username = await noblox.getUsernameFromId(id)
+    const userId = await noblox.getIdFromUsername(username)
+    await interaction.respond([
+        {
+            name: `${username} (${userId})`,
+            value: username
+        }
+    ]);
+  }).catch(() => {
+    return;
+  })
+  }
+  }
+
+  if (interaction.commandName === 'groupunban') {
+
+    if (interaction.options.get('username')) {
+      const name = await interaction.options.get('username').value
+      fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; }
+      if (r.status != 200) { return; }
+      if (r.status == 429) { return; }
+      return r.url.match(/\d+/)[0];
+    }).then(async id => {
+      const username = await noblox.getUsernameFromId(id)
+      const userId = await noblox.getIdFromUsername(username)
+      await interaction.respond([
+          {
+              name: `${username} (${userId})`,
+              value: username
+          }
+      ]);
+    }).catch(() => {
+      return;
+    })
+    }
+    }
+  
+} catch (error) {
+return;
+}
+// End of Auto-Complete
+            // Beginning of Modals
+        if (interaction.isButton()) { // If the interaction contains a button continue.
+        // Handle different button IDs
+        if (interaction.customId === 'claim') { // If the button ID is claim continue.
+          if (interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers || PermissionsBitField.Flags.BanMembers || PermissionsBitField.Flags.KickMembers || PermissionsBitField.Flags.Administrator)) { // If the member clicking the button has any of these permissions continue.
+            // Code to run when 'myButtonId' is clicked
+         await interaction.message.edit({ components: [ new ActionRowBuilder().addComponents( new ButtonBuilder().setCustomId('close').setLabel('Close').setEmoji('🔒').setStyle(ButtonStyle.Danger)).addComponents( new ButtonBuilder().setCustomId('closewithreason').setLabel('Close with Reason').setEmoji('🗒️').setStyle(ButtonStyle.Danger)) ] });
+         await interaction.reply({ content: `Your ticket has been claimed by ${interaction.member.user}\n\nPlease explain how we can assist you today with your ticket!` })
+          } else { // Member clicking the button doesn't have permission therefore show them an error message.
+            await interaction.reply({ content: `You don't have permission to claim this ticket!\n\n**Only Staff** may claim tickets!`, flags: MessageFlags.Ephemeral })
+          }
+        }
+        
+        if (interaction.customId === 'close') { // Close ticket button was clicked so we are going to delete the ticket channel that was created.
+          // Code to run when 'myButtonId' is clicked
+          interaction.message.edit({ components: [] })
+          interaction.reply({ content: `This ticket will be deleting in 5 Minutes!`})
+         setTimeout(async () => {
+         await interaction.deleteReply().catch(() => {
+          return;
+         }).then(async () => {
+          await interaction.channel.delete().catch(() => {
+            return;
+          })
+         })
+         }, 300000)
+        }
+
+        if (interaction.customId === 'closewithreason') { // Close ticket with reason was clicked so open up a form modal to insert the reason.
+          // Handle the button click and open the form
+          const modal = new ModalBuilder()
+        .setCustomId('closewithreasonmodal')
+        .setTitle('Close')
+        .addComponents([
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('closereasoninput')
+              .setLabel('Reason:')
+              .setStyle(TextInputStyle.Paragraph)
+              .setRequired(true),
+          ),
+        ]);
+        await interaction.showModal(modal);
+        }
+
+        if (interaction.customId === 'approve') {
+          const modal = new ModalBuilder()
+          .setCustomId('approvemodal')
+          .setTitle('Approve')
+          .addComponents([
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('approveinput')
+                .setLabel('Username:')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true),
+            ),
+          ]);
+          await interaction.showModal(modal);
+        }
+
+        if (interaction.customId === 'deny') {
+          const modal = new ModalBuilder()
+          .setCustomId('denymodal')
+          .setTitle('Deny')
+          .addComponents([
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('denyinput')
+                .setLabel('Username:')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true),
+            ),
+          ]);
+          await interaction.showModal(modal);
+        }
+
+        if (interaction.customId === 'serversetup') { // Server setup button was clicked so open up a modal to fill in the setting configs for the server.
+          // Handle the button click and open the form
+          const modal = new ModalBuilder()
+        .setCustomId('serversetupmodal')
+        .setTitle('Server Setup')
+        .addComponents([
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('setcookieinput')
+              .setLabel('Roblox Cookie:')
+              .setStyle(TextInputStyle.Paragraph)
+              .setRequired(true),
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('setgroupinput')
+              .setLabel('Roblox Group ID:')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('setminrankinput')
+              .setLabel('Minimum Rank:')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('setgameidinput')
+              .setLabel('Verification Game ID:')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(false)
+          ),
+        ]);
+        await interaction.showModal(modal);
+          }
+
+          if (interaction.customId === 'setuplogs') { // Setup logs button was clicked so open a modal to fill in the log channel settings.
+            // Handle the button click and open the form
+            const modal = new ModalBuilder()
+          .setCustomId('setuplogsmodal')
+          .setTitle('Logs Setup')
+          .addComponents([
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('setshoutchannel')
+                .setLabel('Roblox Group Shout Channel ID:')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true),
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('setserverlogchannel')
+                .setLabel('Discord Logs Channel ID:')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('setsuggestionchannel')
+                .setLabel('Suggestions Channel ID:')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('setticketchannel')
+                .setLabel('Ticket Channel ID:')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+            ),
+          ]);
+          await interaction.showModal(modal);
+            }
+      }
+      // End of Buttons
+
+      function containsNumber(str) {
+        return /^\d+$/.test(str);
+    }
+      // Beginning of Modal Submissions
+        if (interaction.type === InteractionType.ModalSubmit) { // If a form modal was submitted do something.
+
+          if (interaction.customId === 'closewithreasonmodal') {
+            const response = interaction.fields.getTextInputValue('closereasoninput');
+            await interaction.deferReply();
+        
+            const embed = new EmbedBuilder()
+                .setTitle('Ticket Closed!')
+                .setDescription(`Your ticket has been closed!\n\n**Reason:** ${response}\n\nIf you are still having issues, please open another ticket by running **/ticket** command in ${interaction.guild.name} bot commands channel!`)
+                .setColor('Red')
+                .setAuthor({ name: interaction.member.user.username, iconURL: interaction.member.user.displayAvatarURL() })
+                .setTimestamp(Date.now())
+                .setFooter({ text: interaction.guild.name });
+        
+            try {
+                const members = interaction.channel.members;
+                for (const [memberId, member] of members) {
+                    const dbMemberId = await db.get(`Tickets_${interaction.guild.id}_${member.user.id}.discordid`);
+        
+                    if (dbMemberId === member.user.id) {
+                            const targetUser = await interaction.guild.members.fetch(dbMemberId);
+                            await targetUser.send({ embeds: [embed] }).catch(async () => {
+                              await interaction.editReply(':x: **ERROR** | Failed to DM this user! *This message will auto-delete in 30 seconds!*');
+                            setTimeout(() => interaction.deleteReply().catch(() => {}), 30000);
+                            })
+        
+                        await db.delete(`Tickets_${interaction.guild.id}_${member.user.id}`);
+                    }
+                }
+        
+                await interaction.channel.delete().catch(() => {
+                  return;
+                })
+            } catch (error) {
+                await interaction.editReply(':x: **ERROR** | Failed to close the ticket.');
+            }
+        }    
+
+          if (interaction.customId === 'approvemodal') {
+            const response = interaction.fields.getTextInputValue('approveinput');
+              await interaction.deferReply();
+              if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) return interaction.editReply(`:x: **ERROR** | You don't have permission to Approve this application!`)
+                const RobloxUser = await noblox.getIdFromUsername(response).catch(() => {
+                return interaction.editReply(`:x: **ERROR** | ${response} does not exist! Please try another username!`).then(msg => {
+                  setTimeout(() => {
+                    msg.deleteReply().catch(() => {
+                      return;
+                    })
+                  }, 600000)
+                })
+              })
+
+              if (RobloxUser) {
+              await interaction.message.edit({components: []})
+              await interaction.editReply(`:white_check_mark: **APPROVED** | ${response} has Passed for YT mod! Please ask them for their YT username!`)
+              }
+          }
+
+          if (interaction.customId === 'denymodal') {
+            const response = interaction.fields.getTextInputValue('denyinput');
+             await interaction.deferReply();
+             if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) return interaction.editReply(`:x: **ERROR** | You don't have permission to Deny this application!`).then(msg => { setTimeout(() => { msg.deleteReply().catch(() => { return; })}, 10000)})
+               const RobloxUser = await noblox.getIdFromUsername(response).catch(() => {
+                return interaction.editReply(`:x: **ERROR** | ${response} does not exist! Please try another username!`).then(msg => {
+                  setTimeout(() => {
+                    msg.deleteReply().catch(() => {
+                      return;
+                    })
+                  }, 10000)
+                })
+              })
+              
+              if (RobloxUser) {
+              await interaction.message.edit({components: []})
+              await interaction.editReply(`:x: **DENIED** | ${response} has Failed for YT mod! Please let them know their results!`)
+              }
+          }
+
+          if (interaction.customId === 'serversetupmodal') {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+            const response = interaction.fields.getTextInputValue('setcookieinput');
+            const response2 = interaction.fields.getTextInputValue('setgroupinput');
+            const response3 = interaction.fields.getTextInputValue('setminrankinput');
+            const response4 = interaction.fields.getTextInputValue('setgameidinput');
+            if (response.toLowerCase().includes('warning:-') && containsNumber(response2) && containsNumber(response3) && containsNumber(response4)) {
+            await interaction.editReply(`✅ **SUCCESS** | This server has been set up successfully!\nThis message will auto-delete in 5 seconds!`).then(() => {
+              setTimeout(() => {
+               interaction.deleteReply().catch(() => {
+                return;
+               })
+              }, 5000)
+            })
+            await db.set(`ServerSetup_${interaction.guild.id}`, { rblxcookie: response, groupid: response2, minrank: response3, gameid: response4})
+            const RobloxCookie = db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)
+            if (RobloxCookie) {
+            await noblox.setCookie(RobloxCookie, interaction.guild.id).catch(() => {
+              interaction.editReply(`:x: **ERROR** | ${err.message}`)
+            })
+            const CurrentUser = (await noblox.getAuthenticatedUser()).name;
+            console.log(`${CurrentUser} Logged in.`)
+            if (!CurrentUser) return;
+            interaction.guild.members.me.setNickname(CurrentUser);
+            }
+          } else {
+            interaction.editReply(`:x: **ERROR** | Failed to setup this server! **Did you include the Full _|WARNING:- in your cookie and are the other values a number?**\nThis message will auto-delete in 5 seconds!`).then(() => {
+              setTimeout(() => {
+                interaction.deleteReply().catch(() => {
+                  return;
+                })
+              }, 5000)
+            })
+          }
+          }
+
+          if (interaction.customId === 'setuplogsmodal') { // Log settings were submitted so save the settings to that specific server. Useful for handling multi-guilds.
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+            const response = interaction.fields.getTextInputValue('setshoutchannel');
+            const response2 = interaction.fields.getTextInputValue('setserverlogchannel');
+            const response3 = interaction.fields.getTextInputValue('setsuggestionchannel');
+            const response4 = interaction.fields.getTextInputValue('setticketchannel');
+            if (containsNumber(response) && containsNumber(response2) && containsNumber(response3) && containsNumber(response4)) {
+            await interaction.editReply(`✅ **SUCCESS** | Logs have been successfully configured!\nThis message will auto-delete in 5 seconds!`).then(() => {
+              setTimeout(() => {
+               interaction.deleteReply().catch(() => {
+                return;
+               })
+              }, 5000)
+            })
+            await db.set(`LogsSetup_${interaction.guild.id}`, { shoutchannel: response, serverlogs: response2, suggestionchannel: response3, ticketchannel: response4 })
+          } else {
+            interaction.editReply(`:x: **ERROR** | Failed to setup Logs for this server! **All Values must be a number! Make sure you have Developer mode enabled on Discord and Copy Channel ID!**\nThis message will auto-delete in 10 seconds!`).then(() => {
+              setTimeout(() => {
+                interaction.deleteReply().catch(() => {
+                  return;
+                })
+              }, 5000)
+            })
+          }
+        }
+        }
+})
+
   const guilds = [...bot.guilds.cache.values()]; // turn cache into an array
 
 // Map each guild to a Promise that resolves with either the guild data or null
@@ -96,7 +747,6 @@ const results = await Promise.all(
 const validGuilds = results.filter(Boolean);
 // Now process only the valid guilds
 for (const { guild, RobloxCookie, Group, MinRank } of validGuilds) {
-
   if (RobloxCookie && Group) {
         await noblox.setCookie(RobloxCookie, guild.id) // Log Roblox Bot in.
     .then(async(success) => { // Required if the group's shout is private
@@ -108,12 +758,12 @@ for (const { guild, RobloxCookie, Group, MinRank } of validGuilds) {
     // Fetch data and auto-populate command options.
 //----------------------------------------Roblox Group Logs---------------------------------------------------------------------------------------------------------------------------
 
-let RobloxGroup = await db.get(`ServerSetup_${guild.id}.groupid`);
-let RobloxShouts = await db.get(`LogsSetup_${guild.id}.shoutchannel`)
-let onShout = noblox.onShout(RobloxGroup);
+const RobloxGroup = await db.get(`ServerSetup_${guild.id}.groupid`);
+const RobloxShouts = await db.get(`LogsSetup_${guild.id}.shoutchannel`)
+let onShout = noblox.onShout(Number(RobloxGroup));
 if ((RobloxGroup && RobloxShouts)) {
 onShout.on('data', async function(post) {
-    const group = await noblox.getGroup(RobloxGroup).catch(() => {
+    const group = await noblox.getGroup(Number(RobloxGroup)).catch(() => {
       return
     })
     if (!group) return
@@ -155,7 +805,7 @@ shoutchannel.send({ embeds: [embed] })
 }); 
  
 onShout.on('error', function (err) {
-   console.log(err.message)
+   console.log(err)
 });
 }
 
@@ -163,9 +813,9 @@ onShout.on('error', function (err) {
 let RobloxCookie = await db.get(`ServerSetup_${guild.id}.rblxcookie`)
 let ServerLogs = await db.get(`LogsSetup_${guild.id}.serverlogs`)
 if (!(RobloxCookie && ServerLogs)) return;
-let onAudit = noblox.onAuditLog(RobloxGroup, RobloxCookie)
+let onAudit = noblox.onAuditLog(Number(RobloxGroup), RobloxCookie)
 onAudit.on('data', async function(data) {
-  const group = await noblox.getGroup(RobloxGroup).catch(() => {
+  const group = await noblox.getGroup(Number(RobloxGroup)).catch(() => {
     return
   });
   if (!group) return;
@@ -486,7 +1136,6 @@ onAudit.on('error', function(err) {
                           const user = await guild.members.fetch(DiscordUser);
     
                           if (DiscordUser && RobloxUser && user && user.user) {
-                            console.log(user.user.id)
                               responseData = { RobloxUser: RobloxUser, DiscordUser: user.user.username, DiscordId: user.user.id };
                               found = true;
                           }
@@ -583,7 +1232,7 @@ onAudit.on('error', function(err) {
                   responseSent = true;
           }
       } catch (error) {
-        console.log(`Error in processing request: ${error.message}`);
+        console.log(`Error in processing request: ${error}`);
         res.status(500).json({ error: 'Internal Server Error' });
       }
     })
@@ -732,10 +1381,7 @@ onAudit.on('error', function(err) {
       try {
         const User = req.query.userid;
         const PlaceId = req.headers['roblox-id'];
-          const PlaceInfo = await noblox.getPlaceInfo([PlaceId]).catch(function(error) {
-            console.log(error)
-          });
-         
+          const PlaceInfo = await noblox.getPlaceInfo([PlaceId])
           const RobloxGroup = PlaceInfo[0].builderId;
           const groupgames = await noblox.getGroupGames(RobloxGroup, "PUBLIC");
     
@@ -744,7 +1390,7 @@ onAudit.on('error', function(err) {
           const matchesId = groupgames.some(item => item.rootPlace.id.toString() === PlaceId)
     
               if (parseInt(User) && matchesId === true) {
-        const rank = await noblox.getRankInGroup(RobloxGroup, User);
+        const rank = await noblox.getRankInGroup(RobloxGroup, parseInt(User));
         const role = await noblox.getRole(RobloxGroup, rank);
         let newrank = role.rank + 1;
         let newrole = await noblox.getRole(RobloxGroup, newrank);
@@ -773,9 +1419,7 @@ onAudit.on('error', function(err) {
       try {
         const User = req.query.userid;
         const PlaceId = req.headers['roblox-id'];
-          const PlaceInfo = await noblox.getPlaceInfo([PlaceId]).catch(function(error) {
-            console.log(error)
-          });
+          const PlaceInfo = await noblox.getPlaceInfo([PlaceId])
          
           const RobloxGroup = PlaceInfo[0].builderId;
           const groupgames = await noblox.getGroupGames(RobloxGroup, "PUBLIC");
@@ -785,7 +1429,7 @@ onAudit.on('error', function(err) {
           const matchesId = groupgames.some(item => item.rootPlace.id.toString() === PlaceId)
     
               if (parseInt(User) && matchesId === true) {
-                      const rank = await noblox.getRankInGroup(RobloxGroup, User);
+                      const rank = await noblox.getRankInGroup(RobloxGroup, parseInt(User));
                       const role = await noblox.getRole(RobloxGroup, rank);
                       let newrank = role.rank - 1;
                       let newrole = await noblox.getRole(RobloxGroup, newrank);
@@ -815,16 +1459,12 @@ onAudit.on('error', function(err) {
       try {
         const Message = req.query.shout;
         const PlaceId = req.headers['roblox-id'];
-          const PlaceInfo = await noblox.getPlaceInfo([PlaceId]).catch(function(error) {
-            console.log(error)
-          });
+          const PlaceInfo = await noblox.getPlaceInfo([PlaceId])
           
           const RobloxGroup = PlaceInfo[0].builderId;
           if (Group.includes(RobloxGroup)) {
-            console.log(Group)
-            await noblox.setCookie(RobloxCookie, false, guild).catch((err) => {
-              console.log(err.message)
-            })
+           
+            await noblox.setCookie(RobloxCookie, false, guild)
           const groupgames = await noblox.getGroupGames(RobloxGroup, "PUBLIC");
 
           let responseSent = false; // Flag to track whether response has been sent
@@ -856,38 +1496,34 @@ const RobloxGroup = await db.get(`ServerSetup_${guild.id}.groupid`);
 const ServerLogs = await db.get(`LogsSetup_${guild.id}.serverlogs`);
 
 if (ServerLogs && RobloxGroup) {
-
-  // Timeout wrapper for fetch
-  function fetchWithTimeout(resource, options = {}) {
-    const { timeout = 8000 } = options;
-    return Promise.race([
-      fetch(resource, options),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Request timeout")), timeout)
-      ),
-    ]);
-  }
-
   async function fetchMemberData() {
     try {
-      const response = await fetchWithTimeout(`https://groups.roblox.com/v1/groups/${RobloxGroup}`);
+      const response = await fetch(`https://groups.roblox.com/v1/groups/${RobloxGroup}`)
+      if (response.ok) {
       const data = await response.json();
       return data.memberCount || 0;
+      }
     } catch (err) {
       console.error("fetchMemberData error:", err.message);
-      return 0;
     }
   }
 
   async function fetchMostRecentMember() {
     try {
-      const response = await fetchWithTimeout(`https://groups.roblox.com/v1/groups/${RobloxGroup}/users?sortOrder=Desc`);
+      const roles = await fetch(`https://groups.roblox.com/v1/groups/${RobloxGroup}/roles`)
+      if (!roles.ok) return;
+      const roledata = await roles.json();
+      const rolesetId = roledata.roles[1]
+      const roleId = rolesetId.id
+      const response = await fetch(`https://groups.roblox.com/v1/groups/${RobloxGroup}/roles/${roleId}/users?sortOrder=Desc`);
+      if (!response.ok) return;
       const data = await response.json();
-      const mostRecentMember = data.data?.[0];
-      const userId = mostRecentMember?.user?.userId;
+      const mostRecentMember = data.data[0];
+      const userId = mostRecentMember.userId;
       if (!userId) return null;
 
-      const userResponse = await fetchWithTimeout(`https://users.roblox.com/v1/users/${userId}`);
+      const userResponse = await fetch(`https://users.roblox.com/v1/users/${userId}`);
+      if (!userResponse.ok) return;
       const userData = await userResponse.json();
       return {
         id: userData.id,
@@ -900,14 +1536,13 @@ if (ServerLogs && RobloxGroup) {
     }
   }
 
-  async function checkMemberCount(currentCount) {
+  async function checkMemberCount() {
     try {
-      if (previousCount === null) {
-        previousCount = currentCount;
-        return;
-      }
+       const currentCount = await fetchMemberData();
 
+      //if (previousCount === null) return;
       if (currentCount > previousCount) {
+         await new Promise(r => setTimeout(r, 2000)); // wait 2s
         const currentMember = await fetchMostRecentMember();
         if (!currentMember) return;
 
@@ -916,9 +1551,9 @@ if (ServerLogs && RobloxGroup) {
 
         const groupName = group.name;
         const avatar = await noblox.getPlayerThumbnail(currentMember.id, "48x48", "png", true, "headshot");
-        const avatarUrl = avatar?.[0]?.imageUrl || '';
+        const avatarUrl = avatar[0].imageUrl || '';
 
-        const logchannel = bot.guilds.cache.get(guild.id)?.channels.cache.get(ServerLogs);
+        const logchannel = bot.guilds.cache.get(guild.id).channels.cache.get(ServerLogs);
         if (!logchannel) return;
 
         const embed = new EmbedBuilder()
@@ -946,7 +1581,7 @@ if (ServerLogs && RobloxGroup) {
         if (!group) return;
 
         const groupName = group.name;
-        const logchannel = bot.guilds.cache.get(guild.id)?.channels.cache.get(ServerLogs);
+        const logchannel = bot.guilds.cache.get(guild.id).channels.cache.get(ServerLogs);
         if (!logchannel) return;
 
         const embed = new EmbedBuilder()
@@ -962,23 +1597,57 @@ if (ServerLogs && RobloxGroup) {
       previousCount = currentCount;
     } catch (err) {
       console.error("checkMemberCount error:", err.message);
+      return 0;
     }
   }
 
   // Setup shortPoll
-  noblox.shortPoll({
-    getLatest: async function () {
-      const currentCount = await fetchMemberData();
+noblox.shortPoll({
+  getLatest: async (latest) => {
+    try {
+    const currentCount = await fetchMemberData().catch((err) => {
+      return;
+    })
+    const given = [];
+    // Only run on updates, not on the first poll
+ if (latest !== -1 && currentCount !== latest) {
+  try {
+  await checkMemberCount()
+  } catch (err) {
+    console.error("checkMemberCount failed:", err.message);
+  }
+  given.push(currentCount);
+}
+
+    return {
+      latest: currentCount || latest, // update latest for next cycle
+      data: given
+    };
+  } catch (err) {
+    console.error("shortPoll error in getLatest:", err);
+    return { latest, data: [] };
+  }
+  },
+  delay: 10000
+});
+
+
+  /*noblox.shortPoll({
+    getLatest: async function (latest) {
+      const given = []
+      const currentCount = await checkMemberCount()
+      console.log(currentCount)
+      if (currentCount > previousCount) {
+        latest = currentCount
+        given.push(currentCount)
+      }
       return {
-        latest: currentCount,
-        data: [currentCount],
+        latest: latest,
+        data: given,
       };
     },
-    onUpdate: async function (latest, data) {
-      await checkMemberCount(latest);
-    },
-    delay: 30000, // 30 seconds
-  });
+    delay: 10000 // 10 seconds
+  });*/
 
 
 let currentUser = (await noblox.getAuthenticatedUser()).name;

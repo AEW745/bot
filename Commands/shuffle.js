@@ -64,7 +64,7 @@ try {
         }, 5000)
     );
 } catch (err) {
-    console.log(err.message);
+    console.log(err);
     interaction.editReply("No Results\n**This message will Auto-Delete in 10 seconds!**").then(
         setTimeout(() => {
             interaction.deleteReply().catch(() => {

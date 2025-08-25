@@ -31,6 +31,7 @@ const rest = new REST({version: '10'}).setToken(process.env.Token)
  * @param {Client} bot 
  */
 module.exports.execute = async (bot) => {
+
   ffmpeg.setFfmpegPath(ffmpegPath);
 
 async function bufferToMp3(buffer) {
@@ -127,7 +128,7 @@ translate(newtext, { to: 'en' }).then(res => {
 })
     }
     } catch (error) {
-      console.log(error.message)
+      console.log(error)
     }
 });
 
@@ -159,7 +160,7 @@ if (suggestionchannel) {
       await sendMessage.react(`❌`);
       }
     } catch (err) {
-      console.log(err.message);
+      console.log(err);
     }
   }
 }
@@ -189,7 +190,7 @@ if (suggestionchannel) {
         } else {
           ++msgCount;
           if (parseInt(msgCount) === LIMIT2) {
-              console.log('Working!')
+              
               message.reply(`:warning: **ALERT** | Anti-Abuse is in affect! Spamming to gain levels will be ignored!`).then(msg => {
                 setTimeout(() => {
                     msg.delete().catch(() => {
@@ -267,7 +268,7 @@ if (role && member && xp && level) {
       }
     }
     } catch (err) {
-      console.log(err.message)
+      console.log(err)
     }
   })
 
@@ -934,7 +935,7 @@ if (!Array.isArray(warningIds)) {
       });
   }
     } catch(err) {
-      console.log(err.message);
+      console.log(err);
     }
   })
  }

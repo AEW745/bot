@@ -48,14 +48,12 @@ module.exports = {
          */
         async slashexecute(bot, interaction) {
             const player = bot.player;
-             //console.log(player.scanDeps());player.on('debug',console.log).events.on('debug',(_,m)=>console.log(m));
-
             const queue = player.nodes.create(interaction.guild, { metadata: interaction.channel,
 
                 autoSelfDeaf: true, 
                 leaveOnEnd: false, 
                 leaveOnStop: false, 
-                leaveOnEmpty: false, 
+                leaveOnEmpty: true , 
                 leaveOnEndCooldown: 10000,
                 leaveOnEmptyCooldown: 10000, 
                 ytdlOptions: { 
@@ -91,7 +89,7 @@ module.exports = {
                         requestedBy: interaction.user,
                         searchEngine: QueryType.SOUNDCLOUD_SONG
                     })
-                    //console.log(result.tracks)
+                   
                     if (result.tracks.length === 0)
                     return interaction.editReply("No Results").then(
                         setTimeout(() => {
@@ -137,7 +135,7 @@ module.exports = {
                         )
 
                     const playlist = result.playlist
-                    console.log(playlist.tracks.length)
+                    
                     await queue.addTrack(playlist)
                   embed
                   .setTitle(`**Playlist Player**`)
@@ -173,7 +171,7 @@ module.exports = {
                 )
 
             const song = result.tracks[0]
-            console.log(song)
+            
            queue.addTrack(song)
             if (song) {
             embed
@@ -197,7 +195,7 @@ module.exports = {
         })*/
 
      if (!queue.isPlaying()) {
-      console.log('song is playing')
+      
          await queue.node.play()
      }
     await interaction.editReply({
@@ -211,7 +209,7 @@ module.exports = {
 )
         }
     } catch (err) {
-        console.log(err.message)
+        console.log(err)
         await interaction.editReply({ content: `No Results\n**This message will Auto-Delete in 10 seconds!**`, }).then(
         setTimeout(() => {
             interaction.deleteReply().catch(() => {

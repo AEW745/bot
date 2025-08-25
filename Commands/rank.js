@@ -61,7 +61,7 @@ module.exports = {
             try {
                 let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
                 await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
-                    console.log(err.message)
+                    console.log(err)
                 })
                 let minrank = await db.get(`ServerSetup_${interaction.guild.id}.minrank`)
                 if (!(currentuser && userinfo)) return interaction.editReply({ content: `:x: **ERROR** | You must be Verified to run this command!\n**This message will Auto-Delete in 10 seconds!**`}).then(
@@ -134,7 +134,7 @@ module.exports = {
                 let members = await db.get(`RobloxInfo_${interaction.guild.id}_${item}.discordid`)
                 if ((role.rank) <= MaxRankbelowBot && (role.rank) >= 1 && userrunningcommand > MinRank && (getRole.rank) >= 1 && (getRole.rank) !== role.rank && !(id === userinfo)) {
                 const person = await interaction.guild.members.fetch(members)
-                console.log(person)
+                
                     let findRole = ranks
                     let findRole3 = rank
                     const role3 = await interaction.guild.roles.cache.find(r => r.name.includes(findRole))
@@ -201,7 +201,7 @@ module.exports = {
         )
         }
             } catch (error) {
-                console.log(error.message)
+                console.log(error)
             }
         },
 }

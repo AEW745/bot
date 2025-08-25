@@ -60,7 +60,7 @@ module.exports = {
                
                 const groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
                 await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
-                    console.log(err.message)
+                    console.log(err)
                 })
                 id = await noblox.getIdFromUsername(username)
                 rank = await noblox.getRankInGroup(groupid, id)
@@ -99,7 +99,7 @@ module.exports = {
                     }
 
                     const roles = getRoles(role5);
-                    console.log(roles)
+                    
 const hasAllRoles = roles.some(r => member.roles.cache.has(r.id || r));  // Check if member has all roles
                 if (hasAllRoles) {
                 if (member && role2 && role4 && roles) {
@@ -137,7 +137,7 @@ const hasAllRoles = roles.some(r => member.roles.cache.has(r.id || r));  // Chec
                 }
 
             } catch (err) {
-                console.log(err.message)
+                console.log(err)
             }
         }
     }

@@ -73,7 +73,7 @@ module.exports = {
             interaction.editReply({content: `:white_check_mark: **SUCCESS** | Game Download has been sent!\n\n**This is only for using the Bot with Roblox!**`, files: [attachment]})
            }
     } catch (err) {
-        console.log(err.message)
+        console.log(err)
     }
         },
 }

@@ -172,7 +172,7 @@ if (!Array.isArray(warningIds)) {
         )
         }
             } catch (error) {
-                console.log(error.message)
+                console.log(error)
             }
         },
 }

@@ -9,7 +9,7 @@
         "ffmpegPath": null,
         "globalPlayerNodeOptions": {
             "disableSeeker": false,
-            "volume": 50,
+            "volume": 100,
             "maxSize": 10000,
             "bufferingTimeout": 15000,
             "leaveOnStop": true,

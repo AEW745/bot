@@ -50,7 +50,7 @@ module.exports = {
         interaction.editReply({ embeds: [embed], components: [ new ActionRowBuilder().addComponents( new ButtonBuilder().setCustomId('serversetup').setLabel('Setup Server').setEmoji('⚙️').setStyle(ButtonStyle.Success)).addComponents( new ButtonBuilder().setCustomId('setuplogs').setLabel('Setup Logs').setEmoji('📓').setStyle(ButtonStyle.Success)) ], ephemeral: true });
                 })
     } catch (err) {
-                console.log(err.message)
+                console.log(err)
             }
             
         }

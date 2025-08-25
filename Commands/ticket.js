@@ -122,7 +122,7 @@ await db.set(`Tickets_${interaction.guild.id}_${interaction.member.user.id}`, { 
           }
                 }
             } catch (error) {
-                console.log(error.message)
+                console.log(error)
             }
         },
 }

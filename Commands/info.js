@@ -76,7 +76,7 @@ module.exports = {
                     currentProgressBar = createNewProgressBar();
     
                     const song = queue.currentTrack;
-                    console.log(song)
+                    
                     if (song) {
                         const timeString = song?.duration; // Example: 12 minutes and 36 seconds
                 
@@ -109,7 +109,7 @@ module.exports = {
                           })
                 });
             } catch (err) {
-                console.log(err.message);
+                console.log(err);
                 await interaction.reply({
                     content: `No Results\n**This message will Auto-Delete in 10 seconds!**`,
                     ephemeral: true
