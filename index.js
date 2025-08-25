@@ -45,9 +45,9 @@ bot.commands = new Map()
 bot.slashcommands = []
 
 // Find all command files that end in .js for Javascript files only. Change this to whatever code language you are making the bot in.
-const commands = readdirSync('./Commands').filter(file => {
+const commands = readdirSync('./Commands').filter(file => 
     file.endsWith('.js')
-})
+)
 
 // Removes case sensitivity of the files by always returning the name as lowercase and pushes the slash commands into the array.
 for (const command of commands) {
