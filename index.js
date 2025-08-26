@@ -1628,27 +1628,9 @@ noblox.shortPoll({
     return { latest, data: [] };
   }
   },
-  delay: 10000
+  delay: 10000,
+  timeout: -1 // This is to prevent shortpolling from timing out!
 });
-
-
-  /*noblox.shortPoll({
-    getLatest: async function (latest) {
-      const given = []
-      const currentCount = await checkMemberCount()
-      console.log(currentCount)
-      if (currentCount > previousCount) {
-        latest = currentCount
-        given.push(currentCount)
-      }
-      return {
-        latest: latest,
-        data: given,
-      };
-    },
-    delay: 10000 // 10 seconds
-  });*/
-
 
 let currentUser = (await noblox.getAuthenticatedUser()).name;
  console.log(currentUser);

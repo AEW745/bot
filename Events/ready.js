@@ -938,4 +938,25 @@ if (!Array.isArray(warningIds)) {
       console.log(err);
     }
   })
+
+    bot.on('guildMemberUpdate', async (oldMember, newMember) => {
+      const hadBoost = oldMember.premiumSince;
+      const hasBoost = newMember.premiumSince;
+
+      if (!hadBoost && hasBoost) {
+        const boostChannel = newMember.guild.channels.cache.find(
+            (channel) => channel.name.toLowerCase().includes('boost') && channel.isTextBased()
+        );
+        if (boostChannel) {
+          boostChannel.send(`🎉 Thank you, ${newMember.user}, for boosting the server!`);
+        }
+      } else if (hadBoost && !hasBoost) {
+        const boostChannel = oldMember.guild.channels.cache.find(
+            (channel) => channel.name.toLowerCase().includes('boost') && channel.isTextBased()
+        );
+        if (boostChannel) {
+          boostChannel.send(`😭 ${oldMember.user}, sorry to see you go! We miss your boost!`);
+        }
+      }
+    })
  }
