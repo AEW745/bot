@@ -103,8 +103,8 @@ module.exports = {
                  .setTimestamp(Date.now())
                  let findRole = "Verified"
           let findRole2 = role1.name
-          const role = await interaction.guild.roles.cache.find(r => r.name.includes(findRole))
-          const role2 = await interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
+          const role = interaction.guild.roles.cache.find(r => r.name.includes(findRole))
+          const role2 = interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
           const botHighestRole = interaction.guild.members.me.roles.highest;
 
                  await db.set(`RobloxInfo_${interaction.guild.id}_${member.user.id}`, { discordid: member.user.id, robloxid: id, robloxusername: username })
@@ -117,7 +117,7 @@ module.exports = {
                   }, 5000)
               })
                  member.setNickname(nickname)
-                 if (member && role && role2) {
+                 if (member && (role || role2)) {
                     const rolesToAdd = [];
                 
                     // Check if the member already has the roles
@@ -127,11 +127,13 @@ module.exports = {
                         }
                     }
                 
+                    if (role2) {
                     if (!member.roles.cache.has(role2.id)) {
                         if (role2.position < botHighestRole.position) {
                             rolesToAdd.push(role2.id);
                         }
                     }
+                }
                 
                     // Add roles if there are any to add
                     if (rolesToAdd.length > 0) {

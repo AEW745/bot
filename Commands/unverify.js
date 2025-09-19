@@ -95,9 +95,13 @@ module.exports = {
                         rolesToRemove.push(role.id);
                     }
                 
+                    if (role2) {
                     if (interaction.member.roles.cache.has(role2.id) && role2.position < botHighestRole.position) {
                         rolesToRemove.push(role2.id);
                     }
+                } else {
+            interaction.editReply(`Please join the Roblox group to remove group role! I was only able to remove the Verified Role for now!`)
+        }
                 
                     // Remove roles if there are any to remove
                     if (rolesToRemove.length > 0) {

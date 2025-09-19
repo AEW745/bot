@@ -11,10 +11,12 @@ const fetch = require('fetch')
  */
 
 module.exports.execute = async(bot, interaction) => {
-      if (!interaction.isCommand()) return
+      if (interaction.isCommand()) {
     const command = interaction.commandName
 
-    if (!bot.commands.has(command)) return
+    if (bot.commands.has(command)) {
     
     bot.commands.get(command).slashexecute(bot, interaction)
+    }
+  }
 }

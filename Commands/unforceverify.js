@@ -99,10 +99,10 @@ module.exports = {
                 })
                 let findRole = "Verified"
                 let findRole2 = role1.name
-                const role = await interaction.guild.roles.cache.find(r => r.name.includes(findRole))
-                const role2 = await interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
+                const role = interaction.guild.roles.cache.find(r => r.name.includes(findRole))
+                const role2 = interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
                 const botHighestRole = interaction.guild.members.me.roles.highest;
-                if (member && role && role2) {
+                if (member && (role || role2)) {
                   const rolesToRemove = [];
               
                   // Check if the member has the roles
@@ -110,9 +110,11 @@ module.exports = {
                       rolesToRemove.push(role.id);
                   }
               
+                  if (role2) {
                   if (member.roles.cache.has(role2.id) && role2.position < botHighestRole.position) {
                       rolesToRemove.push(role2.id);
                   }
+                }
               
                   // Remove roles if there are any to remove
                   if (rolesToRemove.length > 0) {

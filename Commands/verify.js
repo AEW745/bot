@@ -182,7 +182,7 @@ const collector = interaction.channel.createMessageComponentCollector(filter, { 
 
           const botHighestRole = i.guild.members.me.roles.highest;
 
-          if (i.member && role && role2) {
+          if (i.member && (role || role2)) {
             const rolesToAdd = [];
         
             // Check if the member already has the roles
@@ -192,11 +192,15 @@ const collector = interaction.channel.createMessageComponentCollector(filter, { 
                 }
             }
         
+            if (role2) {
             if (!i.member.roles.cache.has(role2.id)) {
                 if (role2.position < botHighestRole.position) {
                     rolesToAdd.push(role2.id);
                 }
             }
+        } else {
+            i.editReply(`Please join the Roblox group to get group role! I was only able to give you the Verified Role for now!\nIf you join Roblox group please /unverify and do /verify again!`)
+        }
         
             // Add roles if there are any to add
             if (rolesToAdd.length > 0) {
