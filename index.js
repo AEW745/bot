@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, InteractionType, PermissionsBitField, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, InteractionType, PermissionsBitField, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags } = require('discord.js');
 
 require('dotenv').config()
 
@@ -13,6 +13,7 @@ const pogger = new Logger();
 // Express Webserver
 const express = require('express');
 const app = express();
+const cors = require('cors');
 const port = 3000;
 const bodyParser = require('body-parser');
 // Syncronously read content from files
@@ -447,10 +448,6 @@ bot.on('ready', async() => {
            setTimeout(async () => {
            await interaction.deleteReply().catch(() => {
             return;
-           }).then(async () => {
-            await interaction.channel.delete().catch(() => {
-              return;
-            })
            })
            }, 300000)
           }
@@ -1109,6 +1106,41 @@ onAudit.on('error', function(err) {
       console.log(error)
     })
 
+app.use(express.json());
+app.use(cors());
+
+app.post("/api/chat", async (req, res) => {
+    const API_URL = "https://api.openai.com/v1/chat/completions";
+
+    try {
+        const messages = [
+            { role:"system", content: "You are a helpful assistant bot and you always feel good." },
+            { role: "user", content: req.body.message } // frontend sends { message: userText }
+        ];
+
+        const requestOptions = {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${process.env.GPT_API}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages,
+                temperature: 0.7,
+                max_tokens: 500
+            })
+        };
+
+        const response = await (await fetch(API_URL, requestOptions)).json();
+        res.json({ reply: response.choices[0].message.content });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+
     app.get("/verify", async (req, res) => {
       try {
           const User = req.query.userid;
@@ -1414,7 +1446,7 @@ onAudit.on('error', function(err) {
                 }
       } catch(error) {
         console.error(`Error in processing request: ${error.message}`);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        return res.status(500).type("text/plain").send('Internal Server Error');
       }
     });
     
@@ -1450,12 +1482,12 @@ onAudit.on('error', function(err) {
             }
       } catch(error) {
         console.error(`Error in processing request: ${error.message}`);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        return res.status(500).type("text/plain").send('Internal Server Error');
       }
     });
 
     app.get("/", async(req, res) => {
-      res.status(500).json({ error: 'Internal Server Error' })
+      res.status(500).type("text/plain").send('Internal Server Error');
     })
     
     app.get("/shouts", async(req, res) => {
@@ -1486,7 +1518,7 @@ onAudit.on('error', function(err) {
             }
       } catch(error) {
         console.error(`Error in processing request: ${error.message}`);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        return res.status(500).type("text/plain").send('Internal Server Error');
       }
     });
   }
@@ -1639,7 +1671,7 @@ let currentUser = (await noblox.getAuthenticatedUser()).name;
 }
   }
 
-  app.listen(port, () =>
+app.listen(port, () =>
 pogger.success(`[SERVER]`, `Server is Ready!`, ` App Listening to: https://localhost:${port}`)
 )
 })

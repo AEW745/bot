@@ -112,7 +112,7 @@ await db.set(`Tickets_${interaction.guild.id}_${interaction.member.user.id}`, { 
            const embed = new EmbedBuilder()
             .setTitle(`ticket-${formattedCounter}`)
             .setAuthor({ name: subject })
-            .setDescription(`Thanks for opening a support Ticket! Please describe your issue below and we will do our best to assist you!`)
+            .setDescription(`Thanks for opening a support Ticket! Please describe your issue below and we will do our best to assist you!\n\n**Ticked Opened by:** ${interaction.member.user}`)
             .setColor(`Green`)
             .setFooter({ text: interaction.guild.name })
 

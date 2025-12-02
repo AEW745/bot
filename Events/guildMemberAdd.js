@@ -30,10 +30,10 @@ module.exports.execute = async(bot, member) => {
       bot.user.setPresence({ activities: [{ name: `${bot.guilds.cache.size} servers!`, type: 3 }], status: 'dnd'})
     } else {
       if (await db.get(`RobloxInfo_${member.guild.id}_${member.user.id}`)) {
-          await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
+          await noblox.setCookie(await db.get(`ServerSetup_${member.guild.id}.rblxcookie`)).catch((err) => {
                 console.log(err)
               })
-              let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
+              let groupid = await db.get(`ServerSetup_${member.guild.id}.groupid`)
               let id = await db.get(`RobloxInfo_${member.guild.id}_${member.user.id}.robloxid`)
               let rank = await noblox.getRankInGroup(groupid, id).catch((err) => {
                 console.log(err)
