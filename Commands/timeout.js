@@ -80,14 +80,14 @@ module.exports = {
                   })
               }, 10000)
           )*/
-            if (!interaction.member.permissions.has([PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ModerateMembers, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+            if (!interaction.member.permissions.any([PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ModerateMembers, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
               setTimeout(() => {
                   if (interaction) {
                   interaction.deleteReply()
                   }
               }, 10000)
             )
-            if (!interaction.guild.members.me.permissions.has([PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ModerateMembers, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | I don't have permission to perform this action!\n**This message will Auto-Delete in 10 seconds!**`).then(
+            if (!interaction.guild.members.me.permissions.any([PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ModerateMembers, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | I don't have permission to perform this action!\n**This message will Auto-Delete in 10 seconds!**`).then(
               setTimeout(() => {
                   if (interaction) {
                   interaction.deleteReply()

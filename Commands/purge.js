@@ -41,7 +41,7 @@ module.exports = {
          */
         async slashexecute(bot, interaction) {
           //let serversetup = await db.get(`ServerSetup_${interaction.guild.id}`)
-            await interaction.deferReply({ephemeral: true});
+            interaction.deferReply({ephemeral: true});
             /*if (!serversetup) return interaction.editReply(`:x: **ERROR** | This server hasn't been setup. Please ask the Owner to setup the bot for this server!`).then(
               setTimeout(() => {
                   interaction.deleteReply().catch(() => {
@@ -49,14 +49,14 @@ module.exports = {
                   })
               }, 10000)
           )*/
-            if (!interaction.member.permissions.has([PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ManageMessages, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+            if (!interaction.member.permissions.any([PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ManageMessages, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
               setTimeout(() => {
                   if (interaction) {
                   interaction.deleteReply()
                   }
               }, 10000)
             )
-            if (!interaction.guild.members.me.permissions.has([PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ManageMessages, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+            if (!interaction.guild.members.me.permissions.any([PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ManageMessages, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
               setTimeout(() => {
                   if (interaction) {
                   interaction.deleteReply()

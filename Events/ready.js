@@ -1,962 +1,857 @@
-//Discord
-const { Client, EmbedBuilder, AuditLogEvent, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, InteractionType, PermissionsBitField } = require('discord.js')
-//Discord Commands
-const { REST } = require('@discordjs/rest')
-const { Routes } = require('discord-api-types/v10')
-//Secrets Database
-require('dotenv').config();
-//Datastore
+const { Client, EmbedBuilder, ActivityType } = require('discord.js');
+
+const { SoundcloudExtractor } = require('discord-player-soundcloud');
+
+ 
+const { registerExtractors, initPlayer } = require("../utils/registerExtractors");
+
 const { QuickDB } = require("quick.db");
 const db = new QuickDB();
-//Open AI
-const openai = require("../utils/openAi");
-//Translators
-const translate = require('@iamtraction/google-translate');
-const morse = require('@ozdemirburak/morse-code-translator');
-const ISO6391 = require('iso-639-1');
-//HTTP request module
-const axios = require('axios');
-//file convertor
-const { File } = require('formdata-node');
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-const { tmpdir } = require('os');
-const fs = require('fs');
-const path = require('path');
 
-const rest = new REST({version: '10'}).setToken(process.env.Token)
+const { Logger } = require("@hammerhq/logger");
+const pogger = new Logger();
+
+const express = require('express');
+const app = express();
+const cors = require('cors');
+const port = 3000;
+const bodyParser = require('body-parser');
+
+const noblox = require('noblox.js');
+
 
 /**
  * 
  * @param {Client} bot 
  */
 module.exports.execute = async (bot) => {
+console.log(`Bot is online! Logged in as: ${bot.user.tag}`)
+const player = await initPlayer(bot);
+bot.player = player
+await registerExtractors(player);
+bot.player.extractors.register(SoundcloudExtractor)
 
-  ffmpeg.setFfmpegPath(ffmpegPath);
+const guilds = [...bot.guilds.cache.values()]; // turn cache into an array
 
-async function bufferToMp3(buffer) {
-  const inputPath = path.join(tmpdir(), `input-${Date.now()}.opus`);
-  const outputPath = path.join(tmpdir(), `output-${Date.now()}.mp3`);
+// Map each guild to a Promise that resolves with either the guild data or null
+const results = await Promise.all(
+    guilds.map(async (guild) => {
+        const [RobloxCookie, Group, MinRank] = await Promise.all([
+            db.get(`ServerSetup_${guild.id}.rblxcookie`),
+            db.get(`ServerSetup_${guild.id}.groupid`),
+            db.get(`ServerSetup_${guild.id}.minrank`)
+        ]);
 
-  fs.writeFileSync(inputPath, buffer);
+        if (RobloxCookie && Group && MinRank) {
+            return { guild, RobloxCookie, Group, MinRank };
+        }
+        return null; // not valid
+    })
+);
 
-  return new Promise((resolve, reject) => {
-    ffmpeg(inputPath)
-      .toFormat('mp3')
-      .save(outputPath)
-      .on('end', () => {
-        const mp3Buffer = fs.readFileSync(outputPath);
-        fs.unlinkSync(inputPath);
-        fs.unlinkSync(outputPath);
-        resolve(mp3Buffer);
-      })
-      .on('error', reject);
-  });
+// Filter out null results
+const validGuilds = results.filter(Boolean);
+// Now process only the valid guilds
+for (const { guild, RobloxCookie, Group } of validGuilds) {
+if (RobloxCookie && Group) {
+await noblox.setCookie(RobloxCookie, guild.id).then(async(success) => { // Required if the group's shout is private
+console.log(`${(await noblox.getAuthenticatedUser()).name} Logged in.`);
+      
+bot.user.setPresence({ activities: [{ name: `Watching ${bot.guilds.cache.size} servers!`, type: ActivityType.Watching }], status: 'dnd'})
+      
+//----------------------------------------Roblox Group Logs---------------------------------------------------------------------------------------------------------------------------
+
+const RobloxGroup = await db.get(`ServerSetup_${guild.id}.groupid`);
+const RobloxShouts = await db.get(`LogsSetup_${guild.id}.shoutchannel`)
+let onShout = noblox.onShout(Number(RobloxGroup));
+if ((RobloxGroup && RobloxShouts)) {
+onShout.on('data', async function(post) {
+    const group = await noblox.getGroup(Number(RobloxGroup)).catch(() => {
+      return
+    })
+    if (!group) return
+    let groupName = group.name;
+  if (!post.poster) return;
+let avatar = await noblox.getPlayerThumbnail(post.poster.userId, "48x48", "png", true, "headshot")
+let avatarurl = avatar[0].imageUrl;
+const shoutchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${RobloxShouts}`)
+const embed = new EmbedBuilder()
+.setTitle(`**Group Shout**`)
+.addFields(
+  {
+    name: '**User:**',
+    value: `${post.poster.username}`,
+    inline: true
+  },
+  {
+    name: '**UserId:**',
+    value: `${post.poster.userId}`,
+    inline: true
+  },
+  {
+    name: '**Shout Message:**',
+    value: `${post.body || '""'}`,
+    inline: true
+  },
+  {
+    name: '**Links:**',
+    value: `[Group](https://www.roblox.com/groups/${RobloxGroup})\n[Profile](https://www.roblox.com/users/${post.poster.userId}/profile)`,
+    inline: true
+  }
+)
+.setAuthor({ name: post.poster.username, iconURL: avatarurl })
+.setColor(`Green`)
+.setFooter({ text: groupName })
+.setTimestamp(Date.now())
+shoutchannel.send({ embeds: [embed] })
+
+}); 
+ 
+onShout.on('error', function (err) {
+   console.log(err)
+});
 }
 
-  bot.on('guildCreate', async (guild) => {
-    console.log(`Joined guild: ${guild.name}`);
-    bot.user.setPresence({ activities: [{ name: `${bot.guilds.cache.size} servers!`, type: 3 }], status: 'dnd'})
-    // Refresh slash commands for the newly joined guild
-    try {
-      console.log('Started Refreshing Slash Commands');
-      await rest.put(Routes.applicationCommands(bot.user.id), {
-        body: bot.slashcommands,
-      });
-      console.log('Refreshed Slash Commands');
-    } catch (error) {
-      console.error(error);
+
+let RobloxCookie = await db.get(`ServerSetup_${guild.id}.rblxcookie`)
+let ServerLogs = await db.get(`LogsSetup_${guild.id}.serverlogs`)
+let onAudit = noblox.onAuditLog(Number(RobloxGroup), RobloxCookie)
+if ((RobloxCookie && ServerLogs)) {
+onAudit.on('data', async function(data) {
+  const group = await noblox.getGroup(Number(RobloxGroup)).catch(() => {
+    return
+  });
+  if (!group) return;
+  let groupName = group.name;
+  if (data.actionType === 'Ban Member') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) banned user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Unban Member') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) unbanned user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Remove Member') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) kicked user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Change Rank') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) changed user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)'s rank from ${data.description.OldRoleSetName} to ${data.description.NewRoleSetName}`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Post Status') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) changed the group shout to "${data.description.Text}"`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Configure Group Game') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) updated [**${data.description.TargetName}**](https://www.roblox.com/universes/configure?id=${data.description.TargetId}):`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Spend Group Funds') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+        
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const Robux = bot.emojis.cache.get('1230810581779349504')
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) spent ${Robux}${data.description.Amount} of group funds for: ${data.description.ItemDescription}`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Delete Post') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) deleted post "${data.description.PostDesc}" by user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Delete Ally') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) removed group [**${data.description.TargetGroupName}**](https://www.roblox.com/groups/${data.description.TargetGroupId}) as an ally`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Send Ally Request') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) sent an ally request to group [**${data.description.TargetGroupName}**](https://www.roblox.com/groups/${data.description.TargetGroupId})`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Accept Ally Request') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+        
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) accepted group [**${data.description.TargetGroupName}**](https://www.roblox.com/groups/${data.description.TargetGroupId})'s ally request`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Decline Ally Request') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) declined group [**${data.description.TargetGroupName}**](https://www.roblox.com/groups/${data.description.TargetGroupId})'s ally request`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Configure Badge') {
+    if (data.description.Type === 0) {
+      let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+      let avatarurl = avatar[0].imageUrl;
+
+      const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+      const embed = new EmbedBuilder()
+        .setTitle(`**Group Audit Logs**`)
+        .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) enabled the badge [**${data.description.BadgeName}**](https://www.roblox.com/badges/${data.description.BadgeId})`)
+        .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+        .setColor(`Red`)
+        .setFooter({ text: groupName })
+        .setTimestamp(Date.now())
+      logchannel.send({ embeds: [embed] })
+    } else if (data.description.Type === 1) {
+      let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+      let avatarurl = avatar[0].imageUrl;
+
+      const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+      const embed = new EmbedBuilder()
+        .setTitle(`**Group Audit Logs**`)
+        .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) disabled the badge [**${data.description.BadgeName}**](https://www.roblox.com/badges/${data.description.BadgeId})`)
+        .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+        .setColor(`Red`)
+        .setFooter({ text: groupName })
+        .setTimestamp(Date.now())
+      logchannel.send({ embeds: [embed] })
     }
-  });
+  } else if (data.actionType === 'Create Items') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
 
-  bot.on('guildDelete', async (guild) => {
-    console.log(`Left guild: ${guild.name}`);
-    bot.user.setPresence({ activities: [{ name: `${bot.guilds.cache.size} servers!`, type: 3 }], status: 'dnd'})
-    // Refresh slash commands for the newly joined guild
-    try {
-      console.log('Started Refreshing Slash Commands');
-      await rest.put(Routes.applicationCommands(bot.user.id), {
-        body: bot.slashcommands,
-      });
-      console.log('Refreshed Slash Commands');
-    } catch (error) {
-      console.error(error);
-    }
-  });
-  
-  bot.on('messageCreate', async (message) => {
-    try {
-      if (message.author.bot) return;
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
 
-  if (!(message.attachments.size === 0)) {
-  const attachment = message.attachments.first();
-  if (attachment.contentType.includes('image')) return;
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) created the group item [**${data.description.AssetName}**](https://www.roblox.com/catalog/${data.description.AssetId})`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Create Group Asset') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
 
-  try {
-  const response = await axios.get(attachment.url, { responseType: 'arraybuffer' });
-  const opusBuffer = Buffer.from(response.data);
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
 
-  const mp3Buffer = await bufferToMp3(opusBuffer);
-  const file = new File([mp3Buffer], 'converted.mp3', { type: 'audio/mp3' });
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) created asset [**${data.description.AssetName}**](https://www.roblox.com/catalog/${data.description.AssetId})`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Update Group Asset') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
 
-  const result = await openai.audio.transcriptions.create({
-    file,
-    model: 'whisper-1',
-  });
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
 
-  await message.reply(`**${message.author.username}** said: **${result.text}**\n\n**Text was transcribed from Audio**`).catch(() => {
-    message.reply(':x: **ERROR** | An error ocurred when trying to transcribe the Audio. Please try again later!')
-  })
-} catch (err) {
-  console.log('Transcription error:', err);
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) created new version ${data.description.VersionNumber} of asset [**${data.description.AssetName}**](https://www.roblox.com/catalog/${data.description.AssetId})`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Accept Join Request') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) accepted user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)'s join request`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Decline Join Request') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) declined user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)'s join request`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Leave Group') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) left`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  } else if (data.actionType === 'Join Group') {
+    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+    let avatarurl = avatar[0].imageUrl;
+
+    const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+
+    const embed = new EmbedBuilder()
+      .setTitle(`**Group Audit Logs**`)
+      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) joined`)
+      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+      .setColor(`Red`)
+      .setFooter({ text: groupName })
+      .setTimestamp(Date.now())
+    logchannel.send({ embeds: [embed] })
+  }
+})
+
+onAudit.on('error', function(err) {
+    return;
+})
 }
+
+}).catch(function(error) {
+  console.log(error)
+})
   }
 
-      if (message.content.startsWith('.') || message.content.startsWith('-')) {
-        const decoded = morse.decode(message.content);
-        message.channel.send(`**${message.author.username}** said: **${decoded}**\n\n**Text was translated from Morse Code to English**`).catch(() => {
-          message.channel.send(`:x: **ERROR** | An error ocurred when trying to translate Morse Code. Please try again later!`)
-        })
-      } else {
-       const newtext = JSON.stringify(message.content).slice(1, -1).replace(/\*\*/g, '');
-translate(newtext, { to: 'en' }).then(res => {
-    if (res.from.language.iso !== 'en' && res.from.language.iso !== '' && ISO6391.getName(res.from.language.iso) !== '' && res.from.language.iso !== null && res.text.toLowerCase() !== newtext.toLowerCase()) {
-        message.channel.send(`**${message.author.username}** said: **${res.text}**\n\n**Text was translated from ${ISO6391.getName(res.from.language.iso)} to English**`).catch(() => {
-          message.channel.send(`:x: **ERROR** | An error ocurred when trying to translate message. Please try again later!`)
-        })
-    }
-})
-    }
-    } catch (error) {
-      console.log(error)
+app.use(express.json());
+app.use(cors());
+
+app.post("/api/chat", async (req, res) => {
+    const API_URL = "https://api.openai.com/v1/chat/completions";
+
+    try {
+        const messages = [
+            { role:"system", content: "You are a helpful assistant bot and you always feel good." },
+            { role: "user", content: req.body.message } // frontend sends { message: userText }
+        ];
+
+        const requestOptions = {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${process.env.GPT_API}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages,
+                temperature: 0.7,
+                max_tokens: 500
+            })
+        };
+
+        const response = await (await fetch(API_URL, requestOptions)).json();
+        res.json({ reply: response.choices[0].message.content });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ error: "Server error" });
     }
 });
 
-  bot.on('messageCreate', async (message) => {
-    // If someone sends a message run the code below.
-    if (!message.guild) return;
-let suggestionchannel = await await db.get(`LogsSetup_${message.guild.id}.suggestionchannel`)
-if (suggestionchannel) {
-  // If the message was sent in the Suggestion channel continue with the code.
-  if (message.author.id === bot.user.id) return; // If the sender of the message is the bot stop at this line.
-  if (message.channel.id === `${suggestionchannel}`) { // If the sender sends the message in the correct channel continue the function.
-    try {
-      await message.delete().catch(() => {
-        return;
-      })
-      // Delete the user's message because we are going to convert it into an Embed.
-      const embed = new EmbedBuilder()
-        .setTitle(`**New Suggestion!**`)
-        .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
-        .setColor(`Blue`)
-        .setDescription(`${message.content}`)
-        .setFooter({ text: message.guild.name })
-        .setTimestamp(Date.now());
 
-      const sendMessage = await message.channel.send({ embeds: [embed] });
-      
-      if (sendMessage) {
-      await sendMessage.react(`✅`);
-      await sendMessage.react(`❌`);
-      }
-    } catch (err) {
-      console.log(err);
-    }
-  }
-}
-  })
-
-  const usersMap2 = new Map();
-    const LIMIT2 = 5; // Messages
-    const DIFF2 = 20000; //message per millisecond
-  bot.on('messageCreate', async (message) => {
-    if (message.author.id === bot.user.id) return;
-     if (message.member?.permissions.has([PermissionsBitField.Flags.ModerateMembers, PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.BanMembers, PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.ManageGuild, PermissionsBitField.Flags.ManageMessages])) return
-     if (message.channel.name.toLowerCase().includes('spam')) return;
+app.get("/verify", async (req, res) => {
     try {
-      if (usersMap2.has(message.author.id)) {
-        const userData = usersMap2.get(message.author.id);
-        const { lastMessage, timer } = userData;
-        const difference = message.createdTimestamp - lastMessage.createdTimestamp;
-        let msgCount = userData.msgCount;
-        if (difference > DIFF2) {
-          clearTimeout(timer);
-          userData.msgCount = 1;
-          userData.lastMessage = message;
-          userData.timer = setTimeout(() => {
-            usersMap2.delete(message.author.id)
-          }, 5000);
-          usersMap2.set(message.author.id, userData)
+        const User = req.query.userid;
+        const PlaceId = req.headers['roblox-id'];
+        const PlaceInfo = await noblox.getPlaceInfo([PlaceId]).catch((error) => {
+            console.log(error)
+        })
+         
+        const RobloxGroup = PlaceInfo[0].builderId;
+        const groupgames = await noblox.getGroupGames(RobloxGroup, "PUBLIC");
+        let responseData;
+        let found = false;
+    
+        let responseSent = false; // Flag to track whether response has been sent
+    
+        const matchesId = groupgames.some(item => item.rootPlace.id.toString() === PlaceId)
+    
+        if (parseInt(User) && matchesId === true) {
+            await guild.members.fetch();
+            const member = guild.members.cache.find(async m => {
+                const DiscordUser = await db.get(`Verification_${guild.id}_${parseInt(User)}.discordid`);
+                return DiscordUser;
+            });
+
+            if (member) {
+                const RobloxUser = await db.get(`Verification_${guild.id}_${parseInt(User)}.robloxid`);
+                const DiscordUser = await db.get(`Verification_${guild.id}_${parseInt(User)}.discordid`);
+                const user = await guild.members.fetch(DiscordUser);
+    
+                if (DiscordUser && RobloxUser && user && user.user) {
+                    responseData = { RobloxUser: RobloxUser, DiscordUser: user.user.username, DiscordId: user.user.id };
+                    found = true;
+                }
+                if (found && !responseSent) {
+                    responseSent = true;
+                    res.json(responseData);
+                }
+            }
+            if (!responseSent) {
+                res.send('Something went wrong!');
+                responseSent = true;
+            }
         } else {
-          ++msgCount;
-          if (parseInt(msgCount) === LIMIT2) {
-              
-              message.reply(`:warning: **ALERT** | Anti-Abuse is in affect! Spamming to gain levels will be ignored!`).then(msg => {
-                setTimeout(() => {
-                    msg.delete().catch(() => {
-                        return;
-                    });
-                }, 5000);
-            })
-          }
+            res.statusMessage = "Unauthorized | You don't have permission to send this request!";
+            res.status(401).json();
+            responseSent = true;
         }
-      } else {
-          if (!(await db.get(`Levels_${message.guild.id}_${message.author.id}`))) {
-          await db.set(`Levels_${message.guild.id}_${message.author.id}`, {coins: 0, xp: 0, level: 0})
-          }
-          let xp = await db.get(`Levels_${message.guild.id}_${message.author.id}.xp`)
-          let level = await db.get(`Levels_${message.guild.id}_${message.author.id}.level`)
-          if (level == 15) return;
-
-          let NeededXP = level * level * 100
-        let fn = setTimeout(() => {
-          usersMap2.delete(message.author.id)
-      }, 5000);
-      usersMap2.set(message.author.id, {
-          msgCount: 1,
-          lastMessage : message,
-          timer : fn
-      });
-      await db.add(`Levels_${message.guild.id}_${message.author.id}.xp`, 23)
-
-      if (xp >= NeededXP) {
-        await db.add(`Levels_${message.guild.id}_${message.author.id}.level`, 1)
-        await db.sub(`Levels_${message.guild.id}_${message.author.id}.xp`, NeededXP)
-
-        let newxp = await db.get(`Levels_${message.guild.id}_${message.author.id}.xp`)
-        let newlevel = await db.get(`Levels_${message.guild.id}_${message.author.id}.level`)
-
-        if (newlevel == 15) return message.reply(`You reached the **Max level ${newlevel}!** You can't earn anymore levels!`).then(msg => {
-          setTimeout(() => {
-            msg.delete().catch(() => {
-              return;
-            })
-          }, 10000)
-        })
-        let findRole = (`Level ${newlevel}`).toLowerCase();
-const role = message.guild.roles.cache.find(r => r.name.toLowerCase().includes(findRole));
-const botHighestRole = message.guild.members.me.roles.highest;
-const member = message.guild.members.cache.get(message.author.id);
-
-if (role && member && xp && level) {
-  // Check if the bot can manage the role
-  if (role.position < botHighestRole.position) {
-    if (!member.roles.cache.has(role.id)) {
-      try {
-        await member.roles.add(role);
-      } catch (error) {
-        return;
-      }
-    } else {
-      return;
+    
+    } catch (error) {
+        console.log(`Error in processing request: ${error.message}`);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-  } else {
-    return;
-  }
-} else {
-  return;
-}
+});
 
-
-        message.reply(`You are now **level ${newlevel}** with **${newxp} XP**!`).then(msg => {
-          setTimeout(() => {
-            msg.delete().catch(() => {
-              return;
-            })
-          }, 10000)
-        })
-      }
-    }
-    } catch (err) {
-      console.log(err)
-    }
-  })
-
-  //Generate random warning ID for AutoMod warnings.
-  function Generate() {
-    let tokenID = [];
-    let randomstuff = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
-    for (let x = 1; x <= 10; x++) {
-    tokenID.push(randomstuff[Math.floor(Math.random() * randomstuff.length)]);
-    }
-    return tokenID.join('');
-     }
-     const string = Generate();
-     
-    const usersMap = new Map();
-    const LIMIT = 5;
-    const DIFF = 20000; //milliseconds
-  bot.on('messageCreate', async (message) => {
-  if (message.author.id === bot.user.id) return;
-   if (message.member?.permissions.has([PermissionsBitField.Flags.ModerateMembers, PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.BanMembers, PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.ManageGuild, PermissionsBitField.Flags.ManageMessages])) return
-  if (message.channel.name.toLowerCase().includes('spam')) return;
+app.get("/application", async (req, res) => {
     try {
-    if(usersMap.has(message.author.id)) {
-      const userData = usersMap.get(message.author.id);
-      const { lastMessage, timer } = userData;
-      const difference = message.createdTimestamp - lastMessage.createdTimestamp;
-      let msgCount = userData.msgCount;
-      let attempts = await db.get(`attempts_${message.guild.id}_${message.author.id}`);
-      
-      if(difference > DIFF) {
-          clearTimeout(timer);
-          console.log('Cleared Timeout');
-          userData.msgCount = 1;
-          userData.lastMessage = message;
-          userData.timer = setTimeout(() => {
-              usersMap.delete(message.author.id)
-              console.log('Removed from map.')
-          }, 5000);
-          usersMap.set(message.author.id, userData)
-      } else {
-        ++msgCount;
-        let reason = "[AutoMod] Spamming isn't allowed!";
-        let member = message.guild.members.cache.get(message.author.id);
-        if (attempts <= 3 && parseInt(msgCount) === LIMIT) {
-            await db.add(`attempts_${message.guild.id}_${message.author.id}`, 1);
-            await db.set(`userWarnings_${message.guild.id}_${message.author.id}_${string}`, { warningid: string, moderator: bot.user.id, reason: reason});
-            let warningIds = await db.get(`userWarnings_${message.guild.id}_${message.author.id}`);
-          // Ensure it's an array
-if (!Array.isArray(warningIds)) {
-  warningIds = [];
-}
-          warningIds.push(string);
-          await db.set(`userWarnings_${message.guild.id}_${message.author.id}`, warningIds);
-            let embed = new EmbedBuilder()
-                .setColor("Yellow")
-                .setTitle(`**Moderation Report**`)
-                .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL()})
-                .setFooter({ text: `${bot.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: bot.user.displayAvatarURL() })
-                .addFields(
-                  {
-                    name: '**Username:**',
-                    value: `${message.author.username}`,
-                    inline: true
-                  },
-                  {
-                    name: '**Discriminator:**',
-                    value: `${message.author.discriminator}`,
-                    inline: true
-                  },
-                  {
-                    name: '**User Tag:**',
-                    value: `${message.author.tag}`,
-                    inline: true
-                  },
-                  {
-                    name: '**User Mention:**',
-                    value: `${message.author}`,
-                    inline: true
-                  },
-                  {
-                    name: '**UserId:**',
-                    value: `${message.author.id}`,
-                    inline: true
-                  },
-                  {
-                    name: '**Moderation Type:**',
-                    value: 'Warn',
-                    inline: true
-                  },
-                  {
-                    name: '**Reason:**',
-                    value: `${reason}`,
-                    inline: true
-                  },
-                  {
-                    name: '**Moderator:**',
-                    value: `${bot.user.username}`,
-                    inline: true
-                  }
-                )
-                .setTimestamp(Date.now());
+        const User = req.query.userid;
+        const Questions = req.query.questions;
+        const Answers = req.query.answers;
+        const QuestionsArray = JSON.parse(Questions)
+        const AnswersArray = JSON.parse(Answers)
+        const PlaceId = req.headers['roblox-id'];
+        const PlaceInfo = await noblox.getPlaceInfo([PlaceId]).catch(function(error) {
+            console.log(error)
+        })
+          
+        const RobloxGroup = PlaceInfo[0].builderId;
+        const groupgames = await noblox.getGroupGames(RobloxGroup, "PUBLIC");
+        let responseData;
+        let found = false;
         
-            // Fetch the spamming user's messages and bulk delete them
-            message.channel.messages.fetch({ limit: LIMIT }).then(messages => {
-                const userMessages = messages.filter(msg => msg.author.id === message.author.id);
-                Promise.all([
-                message.channel.bulkDelete(userMessages).catch(console.error),
-                message.channel.send({ embeds: [embed] }).then(msg => {
-                  setTimeout(() => {
-                      msg.delete().catch(() => {
-                          return;
+        let responseSent = false; // Flag to track whether response has been sent
+
+        const matchesId = groupgames.some(item => item.rootPlace.id.toString() === PlaceId)
+
+        if (parseInt(User) && Questions && Answers && matchesId === true) {
+            const RobloxUser = await noblox.getUserInfo(parseInt(User))
+            const RobloxId = await noblox.getIdFromUsername(RobloxUser.username)
+            let avatar = await noblox.getPlayerThumbnail(RobloxId, "48x48", "png", true, "headshot")
+            let avatarurl = avatar[0].imageUrl;
+
+            const logchannel = bot.guilds.cache.get(`${guild.id}`).channels.cache.get(`${ServerLogs}`)
+            const embed = new EmbedBuilder()
+            .setTitle(`**YT Mod Application Results!**`)
+            .setDescription(`Please review ${RobloxUser.name}'s Application for YT Mod!`)
+            .addFields(
+                {
+                    name: `**1.** ${QuestionsArray[0][0]}`,
+                    value: `**Answer:** ${AnswersArray[0]}`,
+                    inline: true
+                },
+                {
+                    name: `**2.** ${QuestionsArray[1][0]}`,
+                    value: `**Answer:** ${AnswersArray[1]}`,
+                    inline: true
+                },
+                {
+                    name: `**3.** ${QuestionsArray[2][0]}`,
+                    value: `**Answer:** ${AnswersArray[2]}`,
+                    inline: true
+                },
+                {
+                    name: `**4.** ${QuestionsArray[3][0]}`,
+                    value: `**Answer:** ${AnswersArray[3]}`,
+                    inline: true
+                },
+                {
+                    name: `**5.** ${QuestionsArray[4][0]}`,
+                    value: `**Answer:** ${AnswersArray[4]}`,
+                    inline: true
+                },
+            )
+            .setAuthor({ name: `${RobloxUser.displayName}\n${RobloxUser.name}`, iconURL: avatarurl})
+            .setColor(`Green`)
+            .setFooter({ text: 'Money Developers' })
+            .setTimestamp(Date.now())
+        
+            logchannel.send({ embeds: [embed], components: [ new ActionRowBuilder().addComponents( new ButtonBuilder().setCustomId('approve').setLabel('Approve').setEmoji('✅').setStyle(ButtonStyle.Success)).addComponents( new ButtonBuilder().setCustomId('deny').setLabel('Deny').setEmoji('❌').setStyle(ButtonStyle.Danger)) ] })
+            res.status(200).json();
+            responseSent = true;
+        } else {
+            res.statusMessage = "Unauthorized | You don't have permission to send this request!";
+            res.status(401).json();
+            responseSent = true;
+        }
+    } catch (error) {
+        console.log(`Error in processing request: ${error}`);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+})
+    
+app.use(bodyParser.urlencoded({ extended: true }));
+    
+app.post("/confirm", async(req, res) => {
+    try {
+        const User = req.body.userId;
+        const DiscordId = req.body.discordId;
+        const PlaceId = req.headers['roblox-id'];
+        const PlaceInfo = await noblox.getPlaceInfo([PlaceId]).catch(function(error) {
+            console.log(error)
+        });
+         
+        const RobloxGroup = PlaceInfo[0].builderId;
+        const groupgames = await noblox.getGroupGames(RobloxGroup, "PUBLIC");
+        let found = false;
+    
+        let responseSent = false; // Flag to track whether response has been sent
+    
+        const matchesId = groupgames.some(item => item.rootPlace.id.toString() === PlaceId)
+    
+        if (parseInt(User) && parseInt(DiscordId) && matchesId === true) {
+                    await guild.members.fetch();
+                      const member = guild.members.cache.find(async () => {
+                          const DiscordUser = await db.get(`Verification_${guild.id}_${parseInt(User)}.discordid`);
+                          return DiscordUser;
                       });
-                  }, 5000);
-              })
-            ])
-            }).catch(console.error)
-          } else if (attempts == 4 && member.moderatable && parseInt(msgCount) === LIMIT) {
-            await db.add(`attempts_${message.guild.id}_${message.author.id}`, 1);
-            reason = "[AutoMod] Timed out for Spamming! Duration: 1 Minute!"
-            let embed = new EmbedBuilder()
-                    .setColor("Red")
-                    .setTitle(`**Moderation Report**`)
-                    .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL()})
-                    .setFooter({ text: `${bot.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: bot.user.displayAvatarURL() })
-                    .addFields(
-                      {
-                        name: '**Username:**',
-                        value: `${message.author.username}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Discriminator:**',
-                        value: `${message.author.discriminator}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Tag:**',
-                        value: `${message.author.tag}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Mention:**',
-                        value: `${message.author}`,
-                        inline: true
-                      },
-                      {
-                        name: '**UserId:**',
-                        value: `${message.author.id}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderation Type:**',
-                        value: 'Timeout',
-                        inline: true
-                      },
-                      {
-                        name: '**Reason:**',
-                        value: `${reason}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderator:**',
-                        value: `${bot.user.username}`,
-                        inline: true
-                      }
-                    )
-                    .setTimestamp(Date.now()); 
-            
-           // Fetch the spamming user's messages and bulk delete them
-           message.channel.messages.fetch({ limit: LIMIT }).then(messages => {
-            const userMessages = messages.filter(msg => msg.author.id === message.author.id);
-            Promise.all([
-            member.timeout(60000, reason),
-            message.channel.bulkDelete(userMessages).catch(console.error),
-            message.channel.send({ embeds: [embed] }).then(msg => {
-              setTimeout(() => {
-                msg.delete().catch(() => {
-                  return;
-                })
-            }, 5000)
-          })
-        ])
-        }).catch(console.error);      
-          } else if (attempts == 5 && member.moderatable && parseInt(msgCount) === LIMIT) {
-            await db.add(`attempts_${message.guild.id}_${message.author.id}`, 1);
-            reason = "[AutoMod] Timed out for Spamming! Duration: 5 Minutes!"
-            let embed = new EmbedBuilder()
-                    .setColor("Red")
-                    .setTitle(`**Moderation Report**`)
-                    .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL()})
-                    .setFooter({ text: `${bot.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: bot.user.displayAvatarURL() })
-                    .addFields(
-                      {
-                        name: '**Username:**',
-                        value: `${message.author.username}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Discriminator:**',
-                        value: `${message.author.discriminator}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Tag:**',
-                        value: `${message.author.tag}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Mention:**',
-                        value: `${message.author}`,
-                        inline: true
-                      },
-                      {
-                        name: '**UserId:**',
-                        value: `${message.author.id}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderation Type:**',
-                        value: 'Timeout',
-                        inline: true
-                      },
-                      {
-                        name: '**Reason:**',
-                        value: `${reason}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderator:**',
-                        value: `${bot.user.username}`,
-                        inline: true
-                      }
-                    )
-                    .setTimestamp(Date.now());
-            
-            // Fetch the spamming user's messages and bulk delete them
-           message.channel.messages.fetch({ limit: LIMIT }).then(messages => {
-            const userMessages = messages.filter(msg => msg.author.id === message.author.id);
-            Promise.all([
-            member.timeout(300000, reason),
-            message.channel.bulkDelete(userMessages).catch(console.error),
-            message.channel.send({ embeds: [embed] }).then(msg => {
-              setTimeout(() => {
-                msg.delete().catch(() => {
-                  return;
-                })
-            }, 5000)
-          })
-        ])
-        }).catch(console.error);     
-          } else if (attempts == 6 && member.moderatable && parseInt(msgCount) === LIMIT) {
-            await db.add(`attempts_${message.guild.id}_${message.author.id}`, 1);
-            reason = "[AutoMod] Timed out for Spamming! Duration: 10 Minutes!"
-            let embed = new EmbedBuilder()
-                    .setColor("Red")
-                    .setTitle(`**Moderation Report**`)
-                    .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL()})
-                    .setFooter({ text: `${bot.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: bot.user.displayAvatarURL() })
-                    .addFields(
-                      {
-                        name: '**Username:**',
-                        value: `${message.author.username}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Discriminator:**',
-                        value: `${message.author.discriminator}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Tag:**',
-                        value: `${message.author.tag}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Mention:**',
-                        value: `${message.author}`,
-                        inline: true
-                      },
-                      {
-                        name: '**UserId:**',
-                        value: `${message.author.id}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderation Type:**',
-                        value: 'Timeout',
-                        inline: true
-                      },
-                      {
-                        name: '**Reason:**',
-                        value: `${reason}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderator:**',
-                        value: `${bot.user.username}`,
-                        inline: true
-                      }
-                    )
-                    .setTimestamp(Date.now());
-            
-            // Fetch the spamming user's messages and bulk delete them
-           message.channel.messages.fetch({ limit: LIMIT }).then(messages => {
-            const userMessages = messages.filter(msg => msg.author.id === message.author.id);
-            Promise.all([
-            member.timeout(600000, reason),
-            message.channel.bulkDelete(userMessages).catch(console.error),
-            message.channel.send({ embeds: [embed] }).then(msg => {
-              setTimeout(() => {
-                msg.delete().catch(() => {
-                  return;
-                })
-            }, 5000)
-          })
-        ])
-        }).catch(console.error);     
-          } else if (attempts == 7 && member.moderatable && parseInt(msgCount) === LIMIT) {
-            await db.add(`attempts_${message.guild.id}_${message.author.id}`, 1);
-            reason = "[AutoMod] Timed out for Spamming! Duration: 1 Hour!"
-            let embed = new EmbedBuilder()
-                    .setColor("Red")
-                    .setTitle(`**Moderation Report**`)
-                    .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL()})
-                    .setFooter({ text: `${bot.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: bot.user.displayAvatarURL() })
-                    .addFields(
-                      {
-                        name: '**Username:**',
-                        value: `${message.author.username}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Discriminator:**',
-                        value: `${message.author.discriminator}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Tag:**',
-                        value: `${message.author.tag}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Mention:**',
-                        value: `${message.author}`,
-                        inline: true
-                      },
-                      {
-                        name: '**UserId:**',
-                        value: `${message.author.id}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderation Type:**',
-                        value: 'Timeout',
-                        inline: true
-                      },
-                      {
-                        name: '**Reason:**',
-                        value: `${reason}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderator:**',
-                        value: `${bot.user.username}`,
-                        inline: true
-                      }
-                    )
-                    .setTimestamp(Date.now());
-                     
-            // Fetch the spamming user's messages and bulk delete them
-           message.channel.messages.fetch({ limit: LIMIT }).then(messages => {
-            const userMessages = messages.filter(msg => msg.author.id === message.author.id);
-            Promise.all([
-            member.timeout(3600000, reason),
-            message.channel.bulkDelete(userMessages).catch(console.error),
-            message.channel.send({ embeds: [embed] }).then(msg => {
-              setTimeout(() => {
-                msg.delete().catch(() => {
-                  return;
-                })
-            }, 5000)
-          })
-        ])
-        }).catch(console.error);     
-          } else if (attempts == 8 && member.moderatable && parseInt(msgCount) === LIMIT) {
-            await db.add(`attempts_${message.guild.id}_${message.author.id}`, 1);
-            reason = "[AutoMod] Timed out for Spamming! Duration: 1 Day!"
-            let embed = new EmbedBuilder()
-                    .setColor("Red")
-                    .setTitle(`**Moderation Report**`)
-                    .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL()})
-                    .setFooter({ text: `${bot.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: bot.user.displayAvatarURL() })
-                    .addFields(
-                      {
-                        name: '**Username:**',
-                        value: `${message.author.username}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Discriminator:**',
-                        value: `${message.author.discriminator}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Tag:**',
-                        value: `${message.author.tag}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Mention:**',
-                        value: `${message.author}`,
-                        inline: true
-                      },
-                      {
-                        name: '**UserId:**',
-                        value: `${message.author.id}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderation Type:**',
-                        value: 'Timeout',
-                        inline: true
-                      },
-                      {
-                        name: '**Reason:**',
-                        value: `${reason}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderator:**',
-                        value: `${bot.user.username}`,
-                        inline: true
-                      }
-                    )
-                    .setTimestamp(Date.now());
-                    
-            // Fetch the spamming user's messages and bulk delete them
-           message.channel.messages.fetch({ limit: LIMIT }).then(messages => {
-            const userMessages = messages.filter(msg => msg.author.id === message.author.id);
-            Promise.all([
-            member.timeout(86400000, reason),
-            message.channel.bulkDelete(userMessages).catch(console.error),
-            message.channel.send({ embeds: [embed] }).then(msg => {
-              setTimeout(() => {
-                msg.delete().catch(() => {
-                  return;
-                })
-            }, 5000)
-          })
-        ])
-        }).catch(console.error);     
-          } else if (attempts == 9 && member.moderatable && parseInt(msgCount) === LIMIT) {
-            await db.add(`attempts_${message.guild.id}_${message.author.id}`, 1);
-            reason = "[AutoMod] Timed out for Spamming! Duration: 1 Week!"
-            let embed = new EmbedBuilder()
-                    .setColor("Red")
-                    .setTitle(`**Moderation Report**`)
-                    .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL()})
-                    .setFooter({ text: `${bot.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: bot.user.displayAvatarURL() })
-                    .addFields(
-                      {
-                        name: '**Username:**',
-                        value: `${message.author.username}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Discriminator:**',
-                        value: `${message.author.discriminator}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Tag:**',
-                        value: `${message.author.tag}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Mention:**',
-                        value: `${message.author}`,
-                        inline: true
-                      },
-                      {
-                        name: '**UserId:**',
-                        value: `${message.author.id}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderation Type:**',
-                        value: 'Timeout',
-                        inline: true
-                      },
-                      {
-                        name: '**Reason:**',
-                        value: `${reason}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderator:**',
-                        value: `${bot.user.username}`,
-                        inline: true
-                      }
-                    )
-                    .setTimestamp(Date.now());
-                    
-           // Fetch the spamming user's messages and bulk delete them
-           message.channel.messages.fetch({ limit: LIMIT }).then(messages => {
-            const userMessages = messages.filter(msg => msg.author.id === message.author.id);
-            Promise.all([
-            member.timeout(604800000, reason),
-            message.channel.bulkDelete(userMessages).catch(console.error),
-            message.channel.send({ embeds: [embed] }).then(msg => {
-              setTimeout(() => {
-                msg.delete().catch(() => {
-                  return;
-                })
-            }, 5000)
-          })
-        ])
-        }).catch(console.error);     
-          } else if (attempts == 10 && member.kickable && parseInt(msgCount) === LIMIT) {
-            await db.add(`attempts_${message.guild.id}_${message.author.id}`, 1);
-            reason = "[AutoMod] Kicked for Spamming!"
-            let embed = new EmbedBuilder()
-                    .setColor("Red")
-                    .setTitle(`**Moderation Report**`)
-                    .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL()})
-                    .setFooter({ text: `${bot.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: bot.user.displayAvatarURL() })
-                    .addFields(
-                      {
-                        name: '**Username:**',
-                        value: `${message.author.username}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Discriminator:**',
-                        value: `${message.author.discriminator}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Tag:**',
-                        value: `${message.author.tag}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Mention:**',
-                        value: `${message.author}`,
-                        inline: true
-                      },
-                      {
-                        name: '**UserId:**',
-                        value: `${message.author.id}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderation Type:**',
-                        value: 'Kick',
-                        inline: true
-                      },
-                      {
-                        name: '**Reason:**',
-                        value: `${reason}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderator:**',
-                        value: `${bot.user.username}`,
-                        inline: true
-                      }
-                    )
-                    .setTimestamp(Date.now());
-                    
-                  Promise.all([
-            member.send({ embeds: [embed] }).catch(() => { return; }),
-            message.channel.send({ embeds: [embed] }).then(msg => {
-              setTimeout(() => {
-                msg.delete().catch(() => {
-                  return;
-                })
-            }, 5000)
-          }),
-            member.kick(reason)
-                ])
-            // Fetch the spamming user's messages and bulk delete them
-           message.channel.messages.fetch({ limit: LIMIT }).then(messages => {
-            const userMessages = messages.filter(msg => msg.author.id === message.author.id);
-            message.channel.bulkDelete(userMessages).catch(console.error);
-        }).catch(console.error);     
-          } else if (attempts == 11 && member.bannable && parseInt(msgCount) === LIMIT) {
-            message.channel.bulkDelete(LIMIT).catch(console.error)
-            await db.delete(`attempts_${message.guild.id}_${message.author.id}`)
-            reason = "[AutoMod] Banned for Spamming!"
-            let embed = new EmbedBuilder()
-                    .setColor("Red")
-                    .setTitle(`**Moderation Report**`)
-                    .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL()})
-                    .setFooter({ text: `${bot.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: bot.user.displayAvatarURL() })
-                    .addFields(
-                      {
-                        name: '**Username:**',
-                        value: `${message.author.username}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Discriminator:**',
-                        value: `${message.author.discriminator}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Tag:**',
-                        value: `${message.author.tag}`,
-                        inline: true
-                      },
-                      {
-                        name: '**User Mention:**',
-                        value: `${message.author}`,
-                        inline: true
-                      },
-                      {
-                        name: '**UserId:**',
-                        value: `${message.author.id}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderation Type:**',
-                        value: 'Ban',
-                        inline: true
-                      },
-                      {
-                        name: '**Reason:**',
-                        value: `${reason}`,
-                        inline: true
-                      },
-                      {
-                        name: '**Moderator:**',
-                        value: `${bot.user.username}`,
-                        inline: true
-                      }
-                    )
-                    .setTimestamp(Date.now());
-                    
-                  Promise.all([
-                    message.channel.send({ embeds: [embed] }).then(msg => {
-                      setTimeout(() => {
-                        msg.delete().catch(() => {
-                          return;
-                        })
-                    }, 5000)
-                  }),
-            member.send({ embeds: [embed] }).catch(() => { return; }),
-            member.ban({ deleteMessageSeconds: 60 * 60, reason: reason }).catch(console.error)
-                ])
-          } else {
-            userData.msgCount = msgCount;
-            usersMap.set(message.author.id, userData);
-        }
-    }
-  } else {
-      let fn = setTimeout(() => {
-          usersMap.delete(message.author.id)
-      }, 5000);
-      usersMap.set(message.author.id, {
-          msgCount: 1,
-          lastMessage : message,
-          timer : fn
-      });
-  }
-    } catch(err) {
-      console.log(err);
-    }
-  })
+            if (member) {
+                    const RobloxUser = await db.get(`Verification_${guild.id}_${parseInt(User)}.robloxid`);
+                    const DiscordUser = await db.get(`Verification_${guild.id}_${parseInt(User)}.discordid`);
+                          const user = await guild.members.fetch(DiscordUser);
+    
+                if (RobloxUser && user && user.user && user.user.id == DiscordId) {
+                        const nickname = await db.get(`Verification_${guild.id}_${parseInt(User)}.discordnick`);
+                        let findRole3 = "Verified"
+                        const role3 = await guild.roles.cache.find(r => r.name.includes(findRole3))
+                    if (!user.roles.cache.has(role3.id)) {
+    
+                        let robloxname = await noblox.getUsernameFromId(parseInt(User))
+           
+                        await db.set(`RobloxInfo_${guild.id}_${user.user.id}`, { discordid: user.user.id, robloxid: User, robloxusername: robloxname });
+                        let rank = await noblox.getRankInGroup(RobloxGroup, User)
+                        let role1 = await noblox.getRole(RobloxGroup, rank)
+                        let findRole = "Verified"
+                        let findRole2 = role1.name
+                        const role = await guild.roles.cache.find(r => r.name.includes(findRole))
+                        const role2 = await guild.roles.cache.find(r => r.name.includes(findRole2))
+          
+                        const botHighestRole = guild.members.me.roles.highest;
+          
+                        if (nickname) { 
+                            user.setNickname(nickname[0])
+                        }
+                        found = true
+                        if (found && !responseSent) {
+                            // After processing, send a response back to Roblox
+                            res.json({ success: true, message: 'success' });
+                            responseSent = true;
+                        }
 
-    bot.on('guildMemberUpdate', async (oldMember, newMember) => {
-      const hadBoost = oldMember.premiumSince;
-      const hasBoost = newMember.premiumSince;
+                        if (user && role && role2) {
+                            const rolesToAdd = [];
+        
+                            // Check if the member already has the roles
+                            if (!user.roles.cache.has(role.id)) {
+                                if (role.position < botHighestRole.position) {
+                                    rolesToAdd.push(role.id);
+                                }
+                            }
+        
+                            if (!user.roles.cache.has(role2.id)) {
+                                if (role2.position < botHighestRole.position) {
+                                    rolesToAdd.push(role2.id);
+                                }
+                            }
+        
+                            // Add roles if there are any to add
+                            if (rolesToAdd.length > 0) {
+                                await user.roles.add(rolesToAdd);
+                            }
+                        }
+                    } else {
+                      res.json({ success: false, message: 'Verification failed' });
+                      responseSent = true;
+                    }
+                }
+            }
+        } else {
+            res.statusMessage = "Unauthorized | You don't have permission to send this request!";
+            res.status(401).json();
+            responseSent = true;
+        }
+    } catch(error) {
+        console.error(`Error in processing request: ${error.message}`);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+})   
+    
+app.get("/ranker", async(req, res) => {
+    try {
+        const User = req.query.userid;
+        const Rank = req.query.rank;
+        const PlaceId = req.headers['roblox-id'];
+        const PlaceInfo = await noblox.getPlaceInfo([PlaceId]).catch(function(error) {
+            console.log(error)
+        });
+         
+        const RobloxGroup = PlaceInfo[0].builderId;
+        const groupgames = await noblox.getGroupGames(RobloxGroup, "PUBLIC");
+    
 
-      if (!hadBoost && hasBoost) {
-        const boostChannel = newMember.guild.channels.cache.find(
-            (channel) => channel.name.toLowerCase().includes('boost') && channel.isTextBased()
-        );
-        if (boostChannel) {
-          boostChannel.send(`🎉 Thank you, ${newMember.user}, for boosting the server!`);
+        let responseSent = false; // Flag to track whether response has been sent
+    
+        const matchesId = groupgames.some(item => item.rootPlace.id.toString() === PlaceId)
+    
+        if (parseInt(User) && matchesId === true) {
+            const rank = await noblox.getRankInGroup(RobloxGroup, User);
+            const role = await noblox.getRole(RobloxGroup, rank);
+            let newrole = await noblox.getRole(RobloxGroup, parseInt(Rank));
+            const groupbot = (await noblox.getAuthenticatedUser()).id;
+            const botrank = await noblox.getRankInGroup(RobloxGroup, groupbot);
+            const botrole = await noblox.getRole(RobloxGroup, botrank);
+                    
+            if ((role.rank) <= (botrole.rank) && (role.rank) >= 1) {
+                await noblox.setRank(RobloxGroup, parseInt(User), parseInt(newrole.rank)).catch(() => {
+                    return;
+                })
+                res.status(200).json();
+                responseSent = true;
+            }
+        } else {
+            res.statusMessage = "Unauthorized | You don't have permission to send this request!";
+            res.status(401).json();
+            responseSent = true;
         }
-      } else if (hadBoost && !hasBoost) {
-        const boostChannel = oldMember.guild.channels.cache.find(
-            (channel) => channel.name.toLowerCase().includes('boost') && channel.isTextBased()
-        );
-        if (boostChannel) {
-          boostChannel.send(`😭 ${oldMember.user}, sorry to see you go! We miss your boost!`);
+    } catch(error) {
+        console.error(`Error in processing request: ${error.message}`);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+    
+app.get("/promote", async(req, res) => {
+    try {
+        const User = req.query.userid;
+        const PlaceId = req.headers['roblox-id'];
+        const PlaceInfo = await noblox.getPlaceInfo([PlaceId])
+        const RobloxGroup = PlaceInfo[0].builderId;
+        const groupgames = await noblox.getGroupGames(RobloxGroup, "PUBLIC");
+    
+        let responseSent = false; // Flag to track whether response has been sent
+    
+        const matchesId = groupgames.some(item => item.rootPlace.id.toString() === PlaceId)
+    
+        if (parseInt(User) && matchesId === true) {
+            const rank = await noblox.getRankInGroup(RobloxGroup, parseInt(User));
+            const role = await noblox.getRole(RobloxGroup, rank);
+            let newrank = role.rank + 1;
+            let newrole = await noblox.getRole(RobloxGroup, newrank);
+            const groupbot = (await noblox.getAuthenticatedUser()).id;
+            const botrank = await noblox.getRankInGroup(RobloxGroup, groupbot);
+            const botrole = await noblox.getRole(RobloxGroup, botrank);
+            if ((newrole.rank) < (botrole.rank)) {
+                await noblox.promote(RobloxGroup, parseInt(User)).catch(() => {
+                return;
+            })
+        res.status(200).json();
+        responseSent = true;
         }
-      }
-    })
- }
+        } else {
+            res.statusMessage = "Unauthorized | You don't have permission to send this request!"
+            res.status(401).json();
+            responseSent = true;
+        }
+    } catch(error) {
+        console.error(`Error in processing request: ${error.message}`);
+        return res.status(500).type("text/plain").send('Internal Server Error');
+    }
+});
+    
+app.get("/demote", async(req, res) => {
+    try {
+        const User = req.query.userid;
+        const PlaceId = req.headers['roblox-id'];
+        const PlaceInfo = await noblox.getPlaceInfo([PlaceId])
+         
+        const RobloxGroup = PlaceInfo[0].builderId;
+        const groupgames = await noblox.getGroupGames(RobloxGroup, "PUBLIC");
+    
+        let responseSent = false; // Flag to track whether response has been sent
+    
+        const matchesId = groupgames.some(item => item.rootPlace.id.toString() === PlaceId)
+    
+              if (parseInt(User) && matchesId === true) {
+                    const rank = await noblox.getRankInGroup(RobloxGroup, parseInt(User));
+                    const role = await noblox.getRole(RobloxGroup, rank);
+                    let newrank = role.rank - 1;
+                    let newrole = await noblox.getRole(RobloxGroup, newrank);
+                if ((newrole.rank) >= 1){
+                    await noblox.demote(RobloxGroup, parseInt(User)).catch(() => {
+                        return;
+                    })
+                    res.status(200).json();
+                    responseSent = true;
+                }
+        } else {
+            res.statusMessage = "Unauthorized | You don't have permission to send this request!"
+            res.status(401).json();
+            responseSent = true;
+        }
+    } catch(error) {
+        console.error(`Error in processing request: ${error.message}`);
+        return res.status(500).type("text/plain").send('Internal Server Error');
+    }
+});
+
+app.get("/", async(req, res) => {
+    res.status(500).type("text/plain").send('Internal Server Error');
+})
+    
+app.get("/shouts", async(req, res) => {
+    try {
+        const Message = req.query.shout;
+        const PlaceId = req.headers['roblox-id'];
+        const PlaceInfo = await noblox.getPlaceInfo([PlaceId])
+          
+        const RobloxGroup = PlaceInfo[0].builderId;
+        if (Group.includes(RobloxGroup)) {
+           
+            await noblox.setCookie(RobloxCookie, false, guild)
+            const groupgames = await noblox.getGroupGames(RobloxGroup, "PUBLIC");
+
+            let responseSent = false; // Flag to track whether response has been sent
+    
+            const matchesId = groupgames.some(item => item.rootPlace.id.toString() === PlaceId)
+    
+            if (matchesId === true) {
+                await noblox.shout(RobloxGroup, Message)
+                res.status(200).json();
+                responseSent = true
+            } else {
+                res.statusMessage = "Unauthorized | You don't have permission to send this request!"
+                res.status(401).json();
+                responseSent = true;
+            }
+        }
+    } catch(error) {
+        console.error(`Error in processing request: ${error.message}`);
+        return res.status(500).type("text/plain").send('Internal Server Error');
+    }
+});
+}
+
+app.listen(port, () => {
+    pogger.success(`[SERVER]`, `Server is Ready!`, ` App Listening to: https://localhost:${port}`)
+})
+}

@@ -58,14 +58,14 @@ module.exports = {
                           })
                       }, 10000)
                         )
-                    if (!interaction.member.permissions.has([PermissionsBitField.Flags.ModerateMembers])) return interaction.editReply(`**ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                    if (!interaction.member.permissions.any([PermissionsBitField.Flags.ModerateMembers])) return interaction.editReply(`**ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                         setTimeout(() => {
                           interaction.deleteReply().catch(() => {
                             return;
                           })
                       }, 10000)
                         )
-                    if (!interaction.guild.members.me.permissions.has([PermissionsBitField.Flags.ModerateMembers])) return interaction.editReply(`**ERROR** | I don't have permission to execute this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                    if (!interaction.guild.members.me.permissions.any([PermissionsBitField.Flags.ModerateMembers])) return interaction.editReply(`**ERROR** | I don't have permission to execute this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                         setTimeout(() => {
                           interaction.deleteReply().catch(() => {
                             return;

@@ -42,7 +42,7 @@ module.exports = {
                 }, 10000)
             )*/
             try {
-                if (!interaction.member.permissions.has([PermissionsBitField.Flags.BanMembers, PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.ModerateMembers, PermissionsBitField.Flags.ManageGuild, PermissionsBitField.Flags.Administrator])) return interaction.editReply("**:x: ERROR** | You don't have permission to run this command!").then(
+                if (!interaction.member.permissions.any([PermissionsBitField.Flags.BanMembers, PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.ModerateMembers, PermissionsBitField.Flags.ManageGuild, PermissionsBitField.Flags.Administrator])) return interaction.editReply("**:x: ERROR** | You don't have permission to run this command!").then(
                     setTimeout(() => {
                         interaction.deleteReply().catch(() => {
                             return;

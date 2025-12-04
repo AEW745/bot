@@ -47,14 +47,14 @@ module.exports = {
             )*/
             const username = interaction.options.getUser('username');
             try {
-                if (!interaction.member.permissions.has([PermissionsBitField.Flags.Administrator])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                if (!interaction.member.permissions.any([PermissionsBitField.Flags.Administrator])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                         interaction.deleteReply().catch(() => {
                             return;
                           })
                     }, 10000)
                 )
-                if (!interaction.guild.members.me.permissions.has([PermissionsBitField.Flags.Administrator])) return interaction.editReply(`:x: **ERROR** | I don't have permission to execute this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                if (!interaction.guild.members.me.permissions.any([PermissionsBitField.Flags.Administrator])) return interaction.editReply(`:x: **ERROR** | I don't have permission to execute this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                         interaction.deleteReply().catch(() => {
                             return;

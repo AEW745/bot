@@ -8,8 +8,8 @@ const extractors = discordPlayerConfig?.extractors || {};
 /**
  * Initializes a new Player instance
  * 
- * @param {Client} client 
- * @returns 
+ * @param {Client} client
+ * @returns
  */
 async function initPlayer(client) {
     return new Player(client, {
@@ -21,8 +21,8 @@ async function initPlayer(client) {
 /**
  * Registers all extractors
  * 
- * @param {Player} player 
- * @returns 
+ * @param {Player} player
+ * @returns
  */
 async function registerExtractors(player) {
     const ffmpegFilters = discordPlayerConfig?.ffmpegFilters || {};
@@ -30,11 +30,10 @@ async function registerExtractors(player) {
 
     onBeforeCreateStream(async (track) => {
         try {
-           // console.log(track)
             if (track.extractor.identifier === SoundcloudExtractor.identifier || track.extractor.identifier === YoutubeiExtractor.identifier) return await track.extractor?.stream(track);
             return undefined;
         } catch {
-            return undefined;
+            return undefined
         }
     });
 
@@ -48,12 +47,12 @@ async function registerExtractors(player) {
 /**
  * Reloads all extractors
  * 
- * @param {Player} player 
+ * @param {Player} player
  * @returns
  */
 async function reload(player) {
     await player.extractors.unregisterAll();
-    await registerExtractors(player);
+    await registerExtractors(player)
 }
 
 module.exports = { initPlayer, registerExtractors, reload };

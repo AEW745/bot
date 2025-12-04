@@ -54,14 +54,14 @@ module.exports = {
             const reason = interaction.options.getString('reason') || "No Reason Provided!";
             try {
                 let user = interaction.guild.members.cache.get(username.id);
-                if (!interaction.member.permissions.has([PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                if (!interaction.member.permissions.any([PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                         interaction.deleteReply().catch(() => {
                             return;
                           })
                     }, 10000)
                 )
-                if (!interaction.guild.members.me.permissions.has([PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | I don't have permission to execute this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                if (!interaction.guild.members.me.permissions.any([PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.Administrator, PermissionsBitField.Flags.ManageGuild])) return interaction.editReply(`:x: **ERROR** | I don't have permission to execute this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                         interaction.deleteReply().catch(() => {
                             return;

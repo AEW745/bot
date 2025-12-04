@@ -53,7 +53,7 @@ module.exports = {
         async slashexecute(bot, interaction) {
             await bot.application.fetch();
             await interaction.deferReply({ephemeral: true});
-            if (interaction.member.id !== interaction.guild.ownerId || interaction.member.id !== bot.application.owner.id) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+            if ((interaction.member.id != interaction.guild.ownerId) || (interaction.member.id != bot.application.owner.ownerId)) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                 setTimeout(() => {
                     interaction.deleteReply().catch(() => {
                         return;

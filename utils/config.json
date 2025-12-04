@@ -1,5 +1,5 @@
 {
-
+    
     "discordPlayer": {
         "supportedFileExtensions": ["mp3", "m4a"],
         "dailyReregister": false,
@@ -34,16 +34,16 @@
                 "canBridge": true,
                 "priority": 11,
                 "config": {
-                    "client": "WEB",                   
-                    "highWaterMark": 2097152,                  
+                    "client": "WEB",
+                    "highWaterMark": 2097152,
                     "attemptYoutubeSearchEvenIfDisabled": {
-                        "usingEmbed": true,                    
-                        "usingScraping": false                 
+                        "usingEmbed": true,
+                        "usingScraping": false
                     },
-                    "useServerAbrStream": false,               
-                    "usePoToken": true,                         
-                    "useOnesieRequests": false,               
-                    "useTVOAuthLogin": false,               
+                    "useServerAbrStream": false,
+                    "usePoToken": true,
+                    "useOnesieRequests": false,
+                    "useTVOAuthLogin": false,
                     "useCookie": true
                 }
             }
