@@ -1,4 +1,4 @@
-const { Client, PermissionsBitField, InteractionType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder } = require('discord.js');
+const { Client, PermissionsBitField, InteractionType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, MessageFlags, ActivityType } = require('discord.js');
 
 const { QuickDB } = require("quick.db");
 const db = new QuickDB();
@@ -13,299 +13,165 @@ const { validateInputTools } = require('openai/lib/ResponsesParser.js');
  */
 
 module.exports.execute = async(bot, interaction) => {
-    if (interaction.isAutocomplete()) {
-        const serverData = await db.get(`ServerSetup_${interaction.guild.id}`)
-        const serverSettings = await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`) && await db.get(`ServerSetup_${interaction.guild.id}.groupid`) && await db.get(`ServerSetup_${interaction.guild.id}.minrank`)
-        if (!(serverData && serverSettings)) return;
-        try {
-            const RobloxGroup = serverData.groupid
-            const RobloxCookie = serverData.RobloxCookie
-            if (interaction.commandName === 'rank') {
-                const focusedOption = interaction.options.getFocused(true);
-                if (focusedOption.name === 'rank') {
-                    const groupInfo = await noblox.getGroup(RobloxGroup)
-                    const rank = await noblox.getRankInGroup(RobloxGroup, groupInfo.owner.userId)
-                    const ownerrole = await noblox.getRole(RobloxGroup, rank)
-                    if (RobloxCookie) {
-                        await noblox.setCookie(RobloxCookie, interaction.guild.id)
-                        const groupbot = (await noblox.getAuthenticatedUser()).id
-                        const botrank = await noblox.getRankInGroup(RobloxGroup, groupbot)
-                        const botrole = await noblox.getRole(RobloxGroup, botrank)
-                        const grouproles = await noblox.getRoles(RobloxGroup)
-                        const focusedValue = interaction.options.getFocused();
-                        values = ["Guest", botrole.name, ownerrole.name]
-                        const filtered = grouproles.filter((role) => role.name.toLowerCase().startsWith(focusedValue.toLowerCase()) && !values.includes(role.name) && role.id !== botrole.id);
-                        if (filtered) {
-                            await interaction.respond(
-                                filtered.slice(0, 25).map(role => ({ name: role.name, value: role.name })),
-                            );
-                        }
-                    }
-                }
+async function getRobloxUser(username) {
+  try {
+    const id = await noblox.getIdFromUsername(username);
+  if (!id) return null;
 
-                if (focusedOption.name === 'username') {
-                    const focusedValue = focusedOption.value;
-                    fetch(`https://www.roblox.com/users/profile?username=${focusedValue}`).then(r => {if (!r.ok) { return; } if (r.status != 200) { return; } if (r.status == 429) { return; }}).then(async id => {
-                        const username = await noblox.getUsernameFromId(id)
-                        const userId = await noblox.getIdFromUsername(username)
-                        await interaction.respond([
-                            {
-                                name: `${username} (${userId})`,
-                                value: username
-                            }
-                        ]);
-                    }).catch(() => {
-                        return;
-                    })
-                }
-            }
-            if (interaction.commandName === 'demote') {
-                if (interaction.options.get('username')) {
-                    const name = await interaction.options.get('username').value
-                    fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; } if (r.status != 200) { return; } if (r.status == 429) { return; } return r.url.match(/\d+/)[0]; }).then(async id => {
-                        const username = await noblox.getUsernameFromId(id)
-                        const userId = await noblox.getIdFromUsername(username)
+    const realUsername = await noblox.getUsernameFromId(id);
 
-                        await interaction.respond([
-                            {
-                                name: `${username} (${userId})`,
-                                value: username
-                            }
-                        ]);
-                    }).catch(() => {
-                        return;
-                    })
-                }
-            }
-            if (interaction.commandName === 'promote') {
-                if (interaction.options.get('username')) {
-                    const name = await interaction.options.get('username').value
-                    fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; } if (r.status != 200) { return; } if (r.status == 429) { return; } return r.url.match(/\d+/)[0]; }).then(async id => {
-                        const username = await noblox.getUsernameFromId(id)
-                        const userId = await noblox.getIdFromUsername(username)
-                        await interaction.respond([
-                            {
-                                name: `${username} (${userId})`,
-                                value: username
-                            }
-                        ]);
-                    }).catch(() => {
-                        return;
-                    })
-                }
-            }
-            if (interaction.commandName === 'forceverify') {
-                const options = interaction.options;
-                try {
-                    const name = options.get('rblxusername') ? options.get('rblxusername').value : options.get('nickname').value;
-                    const response = await fetch(`https://www.roblox.com/users/profile?username=${name}`)
+    return { id, username: realUsername };
+  } catch {
+    return null;
+  }
+}
 
-                    if (!response.ok || response.status != 200 || response.status == 429) {
-                        return;
-                    }
 
-                    const id = response.url.match(/\d+/)[0];
-                    const username = await noblox.getUsernameFromId(id);
-                    const userId = await noblox.getIdFromUsername(username)
+if (interaction.isAutocomplete()) {
+    try {
+        const serverData = await db.get(`ServerSetup_${interaction.guild.id}`);
+        if (!serverData) return interaction.respond([]);
 
-                    if (options.get('nickname')) {
-                        const displayName = await noblox.getUserInfo(userId)
-                        await interaction.respond([
-                            { name: 'Display Name', value: displayName.displayName },
-                            { name: 'Smart Name', value: `${displayName.displayName} (@${username})` },
-                            { name: 'Username', value: username },
-                        ]);
-                    } else if (options.get('rblxusername')) {
-                        await interaction.respond([
-                            { name: `${username} (${userId})`, value: username },
-                        ]);
-                    }
-                } catch (error) {
-                    return;
-                }
-            }
-            if (interaction.commandName === 'unforceverify') {
-                if (interaction.options.get('rblxusername')) {
-                    const name = await interaction.options.get('rblxusername').value
-                    fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; } if (r.status != 200) { return; } if (r.status == 429) { return; } return r.url.match(/\d+/)[0]; }).then(async id => {
-                        const username = await noblox.getUsernameFromId(id)
-                        const userId = await noblox.getIdFromUsername(username)
-                        await interaction.respond([
-                            {
-                                name: `${username} (${userId})`,
-                                value: username
-                            }
-                        ]);
-                    }).catch(() => {
-                        return;
-                    })
-                }
-            }
-            if (interaction.commandName === 'unverify') {
-                if (interaction.options.get('username')) {
-                    const name = await interaction.options.get('username').value
-                    fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; } if (r.status != 200) { return; } if (r.status == 429) { return; } return r.url.match(/\d+/)[0]; }).then(async id => {
-                        const username = await noblox.getUsernameFromId(id)
-                        const userId = await noblox.getIdFromUsername(username)
-                        await interaction.respond([
-                            {
-                                name: `${username} (${userId})`,
-                                value: username
-                            }
-                        ]);
-                    }).catch(() => {
-                        return;
-                    })
-                }
-            }
-            if (interaction.commandName === 'verify') {
-                const options = interaction.options;
+        const RobloxGroup = serverData.groupid;
+        const RobloxCookie = serverData.RobloxCookie;
 
-                try {
-                    const name = options.get('username') ? options.get('username').value : options.get('nickname').value;
-                    const response = await fetch(`https://www.roblox.com/users/profile?username=${name}`);
+        const focused = interaction.options.getFocused(true);
+        const focusedValue = focused.value;
 
-                    if (!response.ok || response.status != 200 || response.status == 429) {
-                        return;
-                    }
+        // --------------- RANK AUTOCOMPLETE ---------------
+        if (interaction.commandName === "rank") {
+            if (focused.name === "rank") {
+    try {
+        // Fix field name issues
+        const RobloxGroup = serverData.groupid;
+        const RobloxCookie = serverData.rblxcookie || serverData.RobloxCookie;
 
-                    const id = response.url.match(/\d+/)[0];
-                    const username = await noblox.getUsernameFromId(id)
-                    const userId = await noblox.getIdFromUsername(username)
-
-                    if (options.get('nickname')) {
-                        const displayName = await noblox.getUserInfo(userId)
-                        await interaction.respond([
-                            { name: 'Display Name', value: displayName.displayName },
-                            { name: 'Smart Name', value: `${displayName.displayName} (@${username})`},
-                            { name: 'Username', value: username },
-                        ]);
-                    } else if (options.get('username')) {
-                        await interaction.respond([
-                            { name: `${username} (${userId})`, value: username },
-                        ]);
-                    }
-                } catch (error) {
-                    return;
-                }
-            }
-            if (interaction.commandName === 'setnick') {
-                const options = interaction.options;
-                
-                try {
-                    const name = options.get('username') ? options.get('username').value : options.get('nickname').value;
-                    const response = await fetch (`https://www.roblox.com/users/profile?username=${name}`);
-
-                    if (!response.ok || response.status != 200 || response.status == 429) {
-                        return;
-                    }
-
-                    const id = response.url.match(/\d+/)[0];
-                    const username = await noblox.getUsernameFromId(id)
-                    const userId = await noblox.getIdFromUsername(username)
-
-                    if (options.get('nickname')) {
-                        const displayName = await noblox.getUserInfo(userId)
-                        await interaction.respond([
-                            { name: 'Display Name', value: displayName.displayName },
-                            { name: 'Smart Name', value: `${displayName.displayName} (@${username})` },
-                            { name: 'Username', value: username },
-                        ]);
-                    } else if (options.get('username')) {
-                        await interaction.respond([
-                            { name: `${username} (${userId})`, value: username },
-                        ]);
-                    }
-                } catch (error) {
-                    return;
-                }
-            }
-            if (interaction.commandName === 'forcenick') {
-                const options = interaction.options;
-
-                try {
-                    const name = options.get('username') ? options.get('username').value : options.get('nickname').value;
-                    const response = await fetch(`https://www.roblox.com/users/profile?username=${name}`);
-
-                    if (!response.ok || response.status !== 200 || response.status == 429) {
-                        return;
-                    }
-
-                    const id = response.url.match(/\d+/)[0];
-                    const username = await noblox.getUsernameFromId(id)
-                    const userId = await noblox.getIdFromUsername(username)
-
-                    if (options.get('nickname')) {
-                        const displayName = await noblox.getUserInfo(userId)
-                        await interaction.respond([
-                            { name: 'Display Name', value: displayName.displayName },
-                            { name: 'Smart Name', value: `${displayName.displayName} (@${username})` },
-                            { name: 'Username', value: username },
-                        ]);
-                    } else if (options.get('username')) {
-                        await interaction.respond([
-                            { name: `${username} (${userId})`, value: username },
-                        ]);
-                    }
-                } catch (error) {
-                    return;
-                }
-            }
-            if (interaction.commandName === 'exile') {
-                if (interaction.options.get('username')) {
-                    const name = await interaction.options.get('username').value
-                    fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; } if (r.status != 200) { return; } if (r.status == 429) { return; } return r.url.match(/\d+/)[0]; }).then(async id => {
-                        const username = await noblox.getUsernameFromId(id)
-                        const userId = await noblox.getIdFromUsername(username)
-                        await interaction.respond([
-                            {
-                                name: `${username} (${userId})`,
-                                value: username
-                            }
-                        ]);
-                    }).catch(() => {
-                        return;
-                    })
-                }
-            }
-            if (interaction.commandName === 'groupban') {
-                if (interaction.options.get('username')) {
-                    const name = await interaction.options.get('username').value
-                    fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; } if (r.status != 200) { return; } if (r.status == 429) { return; } return r.url.match(/\d+/)[0]; }).then(async id => {
-                        const username = await noblox.getUsernameFromId(id)
-                        const userId = await noblox.getIdFromUsername(username)
-                        await interaction.respond([
-                            {
-                                name: `${username} (${userId})`,
-                                value: username
-                            }
-                        ]);
-                    }).catch(() => {
-                        return;
-                    })
-                }
-            }
-            if (interaction.commandName == 'groupunban') {
-                if (interaction.options.get('username')) {
-                    const name = await interaction.options.get('username').value
-                    fetch(`https://www.roblox.com/users/profile?username=${name}`).then(r => {if (!r.ok) { return; } if (r.status != 200) { return; } if (r.status == 429) { return; } return r.url.match(/\d+/)[0]; }).then(async id => {
-                        const username = await noblox.getUsernameFromId(id)
-                        const userId = await noblox.getIdFromUsername(username)
-                        await interaction.respond([
-                            {
-                                name: `${username} (${userId})`,
-                                value: username
-                            }
-                        ]);
-                    }).catch(() => {
-                        return;
-                    })
-                }
-            }
-        } catch (error) {
-            return;
+        if (!RobloxGroup || !RobloxCookie) {
+            return interaction.respond([]);
         }
+
+        // Ensure noblox is authenticated
+        try {
+            await noblox.setCookie(RobloxCookie);
+        } catch {
+            return interaction.respond([]);
+        }
+
+        // Get bot user
+        let bot;
+        try {
+            bot = await noblox.getAuthenticatedUser();
+        } catch {
+            return interaction.respond([]);
+        }
+
+        // Get bot role safely
+        let botRank = 0;
+        try {
+            botRank = await noblox.getRankInGroup(RobloxGroup, bot.id);
+        } catch {}
+
+        let botRole = { id: -1, name: "" };
+        try {
+            botRole = await noblox.getRole(RobloxGroup, botRank);
+        } catch {}
+
+        const groupInfo = await noblox.getGroup(RobloxGroup);
+        const ownerRank = await noblox.getRankInGroup(RobloxGroup, groupInfo.owner.userId);
+        const ownerRole = await noblox.getRole(RobloxGroup, ownerRank);
+
+        // Get list of roles
+        let groupRoles = [];
+        try {
+            groupRoles = await noblox.getRoles(RobloxGroup);
+        } catch {
+            return interaction.respond([]);
+        }
+
+        // Roles to exclude
+        const blocked = ["Guest", botRole.name, ownerRole.name ];
+
+        const filtered = groupRoles
+            .filter((r) => {
+                if (blocked.includes(r.name)) return false;
+                if (r.id === botRole.id) return false;
+
+                // Handle initial input gracefully
+                if (!focusedValue) return true;
+
+                return r.name.toLowerCase().startsWith(focusedValue.toLowerCase());
+            })
+            .slice(0, 25)
+            .map((r) => ({
+                name: `${r.name} (Rank: ${r.rank})`,
+                value: r.name,
+            }));
+
+        return interaction.respond(filtered);
+    } catch (err) {
+        console.error("Rank autocomplete error:", err);
+        return interaction.respond([]);
     }
+}
+
+            if (focused.name === "username") {
+                const user = await getRobloxUser(focusedValue);
+                if (!user) return interaction.respond([]);
+
+                return interaction.respond([
+                    { name: `${user.username} (${user.id})`, value: user.username }
+                ]);
+            }
+        }
+
+        // --------------- USERNAME ONLY COMMANDS ---------------
+        const commandsWithUsername = [
+            "demote", "promote", "unforceverify",
+            "unverify", "exile", "groupban",
+            "groupunban"
+        ];
+
+        if (commandsWithUsername.includes(interaction.commandName)) {
+            if (focused.name === "username") {
+                const user = await getRobloxUser(focusedValue);
+                if (!user) return interaction.respond([]);
+
+                return interaction.respond([
+                    { name: `${user.username} (${user.id})`, value: user.username }
+                ]);
+            }
+        }
+
+        // --------------- VERIFY / FORCEVERIFY / NICK COMMANDS ---------------
+        const nickCommands = ["verify", "forceverify", "setnick", "forcenick"];
+        if (nickCommands.includes(interaction.commandName)) {
+            const user = await getRobloxUser(focusedValue);
+            if (!user) return interaction.respond([]);
+
+            const info = await noblox.getUserInfo(user.id);
+
+            if (interaction.options.get("nickname")) {
+                return interaction.respond([
+                    { name: "Display Name", value: info.displayName },
+                    { name: "Smart Name", value: `${info.displayName} (@${user.username})` },
+                    { name: "Username", value: user.username }
+                ]);
+            }
+
+            return interaction.respond([
+                { name: `${user.username} (${user.id})`, value: user.username }
+            ]);
+        }
+
+        // default fail safe
+        return interaction.respond([]);
+
+    } catch (err) {
+        console.error("Autocomplete error:", err);
+        return interaction.respond([]);
+    }
+}
+
     if (interaction.isButton()) {
           // Handle different button IDs
           console.log('Button was pressed')
@@ -555,11 +421,9 @@ module.exports.execute = async(bot, interaction) => {
                 }, 5000)
               })
               await db.set(`ServerSetup_${interaction.guild.id}`, { rblxcookie: response, groupid: response2, minrank: response3, gameid: response4})
-              const RobloxCookie = db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`) || response;
-              if (RobloxCookie) {
-              await noblox.setCookie(RobloxCookie, interaction.guild.id).catch(() => {
-                interaction.editReply(`:x: **ERROR** | ${err.message}`)
-              })
+              if (response) {
+              await noblox.setCookie(response, interaction.guild.id)
+              bot.user.setPresence({ activities: [{ name: `Watching ${bot.guilds.cache.size} servers!`, type: ActivityType.Watching }], status: 'dnd'})
               const CurrentUser = (await noblox.getAuthenticatedUser()).name;
               console.log(`${CurrentUser} Logged in.`)
               if (!CurrentUser) return;
@@ -591,6 +455,373 @@ module.exports.execute = async(bot, interaction) => {
                 }, 5000)
               })
               await db.set(`LogsSetup_${interaction.guild.id}`, { shoutchannel: response, serverlogs: response2, suggestionchannel: response3, ticketchannel: response4 })
+              const RobloxGroup = await db.get(`ServerSetup_${interaction.guild.id}.groupid`);
+              const RobloxShouts = await db.get(`LogsSetup_${interaction.guild.id}.shoutchannel`)
+              let onShout = noblox.onShout(Number(RobloxGroup));
+              if ((RobloxGroup && RobloxShouts)) {
+              onShout.on('data', async function(post) {
+                  const group = await noblox.getGroup(Number(RobloxGroup)).catch(() => {
+                    return
+                  })
+                  if (!group) return
+                  let groupName = group.name;
+                if (!post.poster) return;
+              let avatar = await noblox.getPlayerThumbnail(post.poster.userId, "48x48", "png", true, "headshot")
+              let avatarurl = avatar[0].imageUrl;
+              const shoutchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${RobloxShouts}`)
+              const embed = new EmbedBuilder()
+              .setTitle(`**Group Shout**`)
+              .addFields(
+                {
+                  name: '**User:**',
+                  value: `${post.poster.username}`,
+                  inline: true
+                },
+                {
+                  name: '**UserId:**',
+                  value: `${post.poster.userId}`,
+                  inline: true
+                },
+                {
+                  name: '**Shout Message:**',
+                  value: `${post.body || '""'}`,
+                  inline: true
+                },
+                {
+                  name: '**Links:**',
+                  value: `[Group](https://www.roblox.com/groups/${RobloxGroup})\n[Profile](https://www.roblox.com/users/${post.poster.userId}/profile)`,
+                  inline: true
+                }
+              )
+              .setAuthor({ name: post.poster.username, iconURL: avatarurl })
+              .setColor(`Green`)
+              .setFooter({ text: groupName })
+              .setTimestamp(Date.now())
+              shoutchannel.send({ embeds: [embed] })
+              
+              }); 
+               
+              onShout.on('error', function (err) {
+                 console.log(err)
+              });
+              }
+              
+              let RobloxCookie = await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)
+              let ServerLogs = await db.get(`LogsSetup_${interaction.guild.id}.serverlogs`)
+              let onAudit = noblox.onAuditLog(Number(RobloxGroup), RobloxCookie)
+              if ((RobloxCookie && ServerLogs)) {
+              onAudit.on('data', async function(data) {
+                const group = await noblox.getGroup(Number(RobloxGroup)).catch(() => {
+                  return
+                });
+                if (!group) return;
+                let groupName = group.name;
+                if (data.actionType === 'Ban Member') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) banned user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Unban Member') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) unbanned user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Remove Member') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) kicked user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Change Rank') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) changed user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)'s rank from ${data.description.OldRoleSetName} to ${data.description.NewRoleSetName}`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Post Status') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) changed the group shout to "${data.description.Text}"`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Configure Group Game') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) updated [**${data.description.TargetName}**](https://www.roblox.com/universes/configure?id=${data.description.TargetId}):`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Spend Group Funds') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+                      
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const Robux = bot.emojis.cache.get('1230810581779349504')
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) spent ${Robux}${data.description.Amount} of group funds for: ${data.description.ItemDescription}`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Delete Post') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) deleted post "${data.description.PostDesc}" by user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Delete Ally') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) removed group [**${data.description.TargetGroupName}**](https://www.roblox.com/groups/${data.description.TargetGroupId}) as an ally`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Send Ally Request') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) sent an ally request to group [**${data.description.TargetGroupName}**](https://www.roblox.com/groups/${data.description.TargetGroupId})`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Accept Ally Request') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+                      
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) accepted group [**${data.description.TargetGroupName}**](https://www.roblox.com/groups/${data.description.TargetGroupId})'s ally request`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Decline Ally Request') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) declined group [**${data.description.TargetGroupName}**](https://www.roblox.com/groups/${data.description.TargetGroupId})'s ally request`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Configure Badge') {
+                  if (data.description.Type === 0) {
+                    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                    let avatarurl = avatar[0].imageUrl;
+              
+                    const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                    const embed = new EmbedBuilder()
+                      .setTitle(`**Group Audit Logs**`)
+                      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) enabled the badge [**${data.description.BadgeName}**](https://www.roblox.com/badges/${data.description.BadgeId})`)
+                      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                      .setColor(`Red`)
+                      .setFooter({ text: groupName })
+                      .setTimestamp(Date.now())
+                    logchannel.send({ embeds: [embed] })
+                  } else if (data.description.Type === 1) {
+                    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                    let avatarurl = avatar[0].imageUrl;
+              
+                    const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                    const embed = new EmbedBuilder()
+                      .setTitle(`**Group Audit Logs**`)
+                      .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) disabled the badge [**${data.description.BadgeName}**](https://www.roblox.com/badges/${data.description.BadgeId})`)
+                      .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                      .setColor(`Red`)
+                      .setFooter({ text: groupName })
+                      .setTimestamp(Date.now())
+                    logchannel.send({ embeds: [embed] })
+                  }
+                } else if (data.actionType === 'Create Items') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) created the group item [**${data.description.AssetName}**](https://www.roblox.com/catalog/${data.description.AssetId})`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Create Group Asset') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) created asset [**${data.description.AssetName}**](https://www.roblox.com/catalog/${data.description.AssetId})`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Update Group Asset') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) created new version ${data.description.VersionNumber} of asset [**${data.description.AssetName}**](https://www.roblox.com/catalog/${data.description.AssetId})`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Accept Join Request') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) accepted user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)'s join request`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Decline Join Request') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) declined user [**@${data.description.TargetName}**](https://www.roblox.com/users/${data.description.TargetId}/profile)'s join request`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Leave Group') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) left`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                } else if (data.actionType === 'Join Group') {
+                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatarurl = avatar[0].imageUrl;
+              
+                  const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
+              
+                  const embed = new EmbedBuilder()
+                    .setTitle(`**Group Audit Logs**`)
+                    .setDescription(`[**${data.actor.user.displayName}**](https://www.roblox.com/users/${data.actor.user.userId}/profile) joined`)
+                    .setAuthor({ name: `${data.actor.user.displayName}\n${data.actor.role.name}`, iconURL: avatarurl})
+                    .setColor(`Red`)
+                    .setFooter({ text: groupName })
+                    .setTimestamp(Date.now())
+                  logchannel.send({ embeds: [embed] })
+                }
+              })
+              
+              onAudit.on('error', function(err) {
+                  return;
+              })
+              }
             } else {
               interaction.editReply(`:x: **ERROR** | Failed to setup Logs for this server! **All Values must be a number! Make sure you have Developer mode enabled on Discord and Copy Channel ID!**\nThis message will auto-delete in 10 seconds!`).then(() => {
                 setTimeout(() => {
