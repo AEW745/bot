@@ -27,7 +27,7 @@ module.exports = {
     .setName('unforceverify')
     .setDescription('Removes Verification from a member in the Roblox Group.')
     .addStringOption(option =>
-        option.setName('rblxusername')
+        option.setName('username')
         .setDescription('What is their Roblox Username?').setRequired(true)
         .setAutocomplete(true)
         )
@@ -51,7 +51,7 @@ module.exports = {
                   })
               }, 10000)
           )
-            const username = interaction.options.getString('rblxusername');
+            const username = interaction.options.getString('username');
             const discorduser = interaction.options.getUser('discordusername');
         const member = await interaction.guild.members.fetch(discorduser.id);
             try {

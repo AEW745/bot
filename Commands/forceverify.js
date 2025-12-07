@@ -27,7 +27,7 @@ module.exports = {
     .setName('forceverify')
     .setDescription('Force Verifies a member in the Roblox Group.')
     .addStringOption(option =>
-        option.setName('rblxusername')
+        option.setName('username')
         .setDescription('What is their Roblox Username?').setRequired(true)
         .setAutocomplete(true)
         )
@@ -56,7 +56,7 @@ module.exports = {
                   })
               }, 10000)
           )
-            const username = interaction.options.getString('rblxusername');
+            const username = interaction.options.getString('username');
             const discorduser = interaction.options.getUser('discordusername');
             const nickname = interaction.options.getString('nickname');
             if (nickname.length > 32) return interaction.editReply(`:x: **ERROR** | Your nickname is too long! Please choose Username or Displayname format!`).then(

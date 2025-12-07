@@ -61,7 +61,6 @@ console.log(`${(await noblox.getAuthenticatedUser()).name} Logged in.`);
 bot.user.setPresence({ activities: [{ name: `Watching ${bot.guilds.cache.size} servers!`, type: ActivityType.Watching }], status: 'dnd'})
       
 //----------------------------------------Roblox Group Logs---------------------------------------------------------------------------------------------------------------------------
-
 const RobloxGroup = await db.get(`ServerSetup_${guild.id}.groupid`);
 const RobloxShouts = await db.get(`LogsSetup_${guild.id}.shoutchannel`)
 let onShout = noblox.onShout(Number(RobloxGroup));

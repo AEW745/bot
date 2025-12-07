@@ -18,9 +18,9 @@ async function getRobloxUser(username) {
     const id = await noblox.getIdFromUsername(username);
   if (!id) return null;
 
-    const realUsername = await noblox.getUsernameFromId(id);
+    const displayname = await noblox.getUserInfo(id);
 
-    return { id, username: realUsername };
+    return { id, username: displayname.name, displayName: displayname.displayName };
   } catch {
     return null;
   }
@@ -115,46 +115,47 @@ if (interaction.isAutocomplete()) {
         }
 
         // --------------- USERNAME ONLY COMMANDS ---------------
-        const commandsWithUsername = [
-            "demote", "promote", "unforceverify",
-            "unverify", "exile", "groupban",
-            "groupunban"
-        ];
+const commandsWithUsername = [
+    "demote", "promote", "unforceverify",
+    "unverify", "exile", "groupban",
+    "groupunban", "forceverify", "forcenick", "rank", "verify", "setnick"
+];
 
-        if (commandsWithUsername.includes(interaction.commandName)) {
-            if (focused.name === "username") {
-                const user = await getRobloxUser(focusedValue);
-                if (!user) return interaction.respond([]);
+// ---------------- USERNAME-ONLY COMMANDS ----------------
+if (commandsWithUsername.includes(interaction.commandName)) {
+    const focused = interaction.options.getFocused(true);
 
-                return interaction.respond([
-                    { name: `${user.username} (${user.id})`, value: user.username }
-                ]);
-            }
+    // USERNAME AUTOCOMPLETE
+    if (focused.name === "username") {
+        const user = await getRobloxUser(focused.value);
+        if (!user) return interaction.respond([]);
+
+        return interaction.respond([
+            { name: `${user.username} (${user.id})`, value: user.username }
+        ]);
+    }
+
+    // NICKNAME AUTOCOMPLETE
+    if (focused.name === "nickname") {
+        // Get Roblox user even if nothing typed
+        // Use fallback: if no username typed, use command's main username option
+        const usernameOption = interaction.options.getString("username");
+        if (!usernameOption) {
+            return interaction.respond([]);
         }
 
-        // --------------- VERIFY / FORCEVERIFY / NICK COMMANDS ---------------
-        const nickCommands = ["verify", "forceverify", "setnick", "forcenick"];
-        if (nickCommands.includes(interaction.commandName)) {
-            const user = await getRobloxUser(focusedValue);
-            if (!user) return interaction.respond([]);
+        const user = await getRobloxUser(usernameOption);
+        if (!user) return interaction.respond([]);
 
-            const info = await noblox.getUserInfo(user.id);
+        const info = await noblox.getUserInfo(user.id);
 
-            if (interaction.options.get("nickname")) {
-                return interaction.respond([
-                    { name: "Display Name", value: info.displayName },
-                    { name: "Smart Name", value: `${info.displayName} (@${user.username})` },
-                    { name: "Username", value: user.username }
-                ]);
-            }
-
-            return interaction.respond([
-                { name: `${user.username} (${user.id})`, value: user.username }
-            ]);
-        }
-
-        // default fail safe
-        return interaction.respond([]);
+        return interaction.respond([
+            { name: "Display Name", value: info.displayName },
+            { name: "Smart Name", value: `${info.displayName} (@${user.username})` },
+            { name: "Username", value: user.username }
+        ]);
+    }
+}
 
     } catch (err) {
         console.error("Autocomplete error:", err);
