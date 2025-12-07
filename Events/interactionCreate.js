@@ -32,9 +32,6 @@ if (interaction.isAutocomplete()) {
         const serverData = await db.get(`ServerSetup_${interaction.guild.id}`);
         if (!serverData) return interaction.respond([]);
 
-        const RobloxGroup = serverData.groupid;
-        const RobloxCookie = serverData.RobloxCookie;
-
         const focused = interaction.options.getFocused(true);
         const focusedValue = focused.value;
 
@@ -47,13 +44,6 @@ if (interaction.isAutocomplete()) {
         const RobloxCookie = serverData.rblxcookie || serverData.RobloxCookie;
 
         if (!RobloxGroup || !RobloxCookie) {
-            return interaction.respond([]);
-        }
-
-        // Ensure noblox is authenticated
-        try {
-            await noblox.setCookie(RobloxCookie);
-        } catch {
             return interaction.respond([]);
         }
 
@@ -422,12 +412,15 @@ if (interaction.isAutocomplete()) {
               })
               await db.set(`ServerSetup_${interaction.guild.id}`, { rblxcookie: response, groupid: response2, minrank: response3, gameid: response4})
               if (response) {
-              await noblox.setCookie(response, interaction.guild.id)
+              await noblox.setCookie(response, interaction.guild.id).then(async (success) => {
+                if (success) {
               bot.user.setPresence({ activities: [{ name: `Watching ${bot.guilds.cache.size} servers!`, type: ActivityType.Watching }], status: 'dnd'})
               const CurrentUser = (await noblox.getAuthenticatedUser()).name;
               console.log(`${CurrentUser} Logged in.`)
               if (!CurrentUser) return;
               interaction.guild.members.me.setNickname(CurrentUser);
+                }
+              })
               }
             } else {
               interaction.editReply(`:x: **ERROR** | Failed to setup this server! **Did you include the Full _|WARNING:- in your cookie and are the other values a number?**\nThis message will auto-delete in 5 seconds!`).then(() => {

@@ -55,6 +55,7 @@ const validGuilds = results.filter(Boolean);
 for (const { guild, RobloxCookie, Group } of validGuilds) {
 if (RobloxCookie && Group) {
 await noblox.setCookie(RobloxCookie, guild.id).then(async(success) => { // Required if the group's shout is private
+  if (success) {
 console.log(`${(await noblox.getAuthenticatedUser()).name} Logged in.`);
       
 bot.user.setPresence({ activities: [{ name: `Watching ${bot.guilds.cache.size} servers!`, type: ActivityType.Watching }], status: 'dnd'})
@@ -429,7 +430,7 @@ onAudit.on('error', function(err) {
     return;
 })
 }
-
+}
 }).catch(function(error) {
   console.log(error)
 })
