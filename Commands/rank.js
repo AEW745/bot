@@ -7,7 +7,7 @@ const {
     MessageButton,
 } = require('discord.js')
 
-const noblox = require('noblox.js')
+const roblox = require('noblox.js')
 require('dotenv').config();
 const { SlashCommandBuilder } = require('@discordjs/builders')
 
@@ -60,7 +60,7 @@ module.exports = {
             let currentuser = await db.get(`RobloxInfo_${interaction.guild.id}_${interaction.member.id}.robloxusername`);
             try {
                 let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
-                await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
+                await roblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
                     console.log(err)
                 })
                 let minrank = await db.get(`ServerSetup_${interaction.guild.id}.minrank`)
@@ -71,14 +71,14 @@ module.exports = {
                       })
                 }, 10000)
                 )
-                const currentuserid = await noblox.getIdFromUsername(currentuser)
-                const currentuserrank = await noblox.getRankInGroup(groupid, currentuserid)
-                const currentuserrole = await noblox.getRole(groupid, currentuserrank)
+                const currentuserid = await roblox.getIdFromUsername(currentuser)
+                const currentuserrank = await roblox.getRankInGroup(groupid, currentuserid)
+                const currentuserrole = await roblox.getRole(groupid, currentuserrank)
                 const userrunningcommand = currentuserrole.rank;
                 const MinRank = minrank;
                 let getRole;
                 try {
-                getRole = await noblox.getRole(groupid, ranks)
+                getRole = await roblox.getRole(groupid, ranks)
                 } catch (error) {
                     return interaction.editReply({ content: `**${ranks}** is not a Valid rank! Please choose a rank from the options.\n**This message will Auto-Delete in 10 seconds!**`}).then(
                         setTimeout(() => {
@@ -91,8 +91,8 @@ module.exports = {
                 let id;
                 let rank;
                 try {
-                id = await noblox.getIdFromUsername(username)
-                rank = await noblox.getRankInGroup(groupid, id)
+                id = await roblox.getIdFromUsername(username)
+                rank = await roblox.getRankInGroup(groupid, id)
                 } catch (error) {
                     return interaction.editReply({ content: `**${username}** is not a Valid username! Please enter a Valid username!\n**This message will Auto-Delete in 10 seconds!**`}).then(
                         setTimeout(() => {
@@ -121,10 +121,10 @@ module.exports = {
                     }, 10000)
                     )
                 }
-                const role = await noblox.getRole(groupid, rank)
-                const groupbot = (await noblox.getAuthenticatedUser()).id
-                const botrank = await noblox.getRankInGroup(groupid, groupbot)
-                const botrole = await noblox.getRole(groupid, botrank)
+                const role = await roblox.getRole(groupid, rank)
+                const groupbot = (await roblox.getAuthenticatedUser()).id
+                const botrank = await roblox.getRankInGroup(groupid, groupbot)
+                const botrole = await roblox.getRole(groupid, botrank)
                 const MaxRankbelowBot = botrole.rank - 1;
                 let users = (await interaction.guild.members.fetch())
             let member_ids = users.map(m => m.user.id);
@@ -163,7 +163,7 @@ module.exports = {
                 }
             }
 
-              let avatar = await noblox.getPlayerThumbnail(id, "48x48", "png", true, "headshot");
+              let avatar = await roblox.getPlayerThumbnail(id, "48x48", "png", true, "headshot");
       let avatarurl = avatar[0].imageUrl;
       
                 if ((role.rank) <= MaxRankbelowBot && (role.rank) >= 1 && userrunningcommand > MinRank && (getRole.rank) >= 1 && (getRole.rank) !== role.rank && !(id === userinfo)) {
@@ -174,7 +174,7 @@ module.exports = {
                   .setAuthor({ name: username, iconURL: avatarurl })
                   .setFooter({ text: `${interaction.member.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: interaction.member.user.displayAvatarURL() })
                   .setTimestamp(Date.now());
-                noblox.setRank(groupid, id, getRole.rank)
+                roblox.setRank(groupid, id, getRole.rank)
                 interaction.editReply({ content: `:white_check_mark: **SUCCESS** | Successfully Ranked **${username}** to **${ranks}**\n**This message will Auto-Delete in 10 seconds!**`,
             }).then(
             setTimeout(() => {

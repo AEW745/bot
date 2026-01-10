@@ -8,7 +8,7 @@ const db = new QuickDB();
 //Open AI
 const openai = require("../utils/openAi");
 //Translators
-const translate = require('@iamtraction/google-translate');
+const translate = require('google-translate-api-x');
 const morse = require('@ozdemirburak/morse-code-translator');
 const ISO6391 = require('iso-639-1');
 //HTTP request module
@@ -20,8 +20,6 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const { tmpdir } = require('os');
 const fs = require('fs');
 const path = require('path');
-const { UserSelectMenuBuilder } = require('@discordjs/builders');
-
 const usersMap = new Map();
 /**
  * 
@@ -61,45 +59,6 @@ module.exports.execute = async (bot, message) => {
      
     const LIMIT = 3;
     const DIFF = 15000; //milliseconds
-    // ----------------------------------------------[ TRANSLATOR ]-----------------------------------------------------------
-    if (!message.author.bot) {
-        try {
-            if (!(message.attachments.size === 0)) {
-                const attachment = message.attachments.first();
-                if (attachment.contentType.includes('image')) return;
-                const response = await axios.get(attachment.url, { responseType: 'arraybuffer' });
-                const opusBuffer = Buffer.from(response.data);
-                const mp3Buffer = await bufferToMp3(opusBuffer);
-                const file = new File([mp3Buffer], 'converted.mp3', { type: 'audio/mp3' });
-
-                const result = await openai.audio.transcriptions.create({
-                    file,
-                    model: 'whisper-1',
-                });
-                await message.reply(`**${message.author.username}** said: **${result.text}**\n\n**Text was transcribed from Audio**`).catch(() => {
-                    message.reply(':x: **ERROR** | An error ocurred when trying to transcribe the Audio. Please try again later!')
-                });
-            }
-            if (message.content.startsWith('.') || message.content.startsWith('-')) {
-                const decoded = morse.decode(message.content);
-                message.channel.send(`**${message.author.username}** said: **${decoded}**\n\n**Text was translated from Morse Code to English**`).catch(() => {
-                    message.channel.send(`:x: **ERROR** | An error ocurred when trying to translate Morse Code. Please try again later!`)
-                });
-            } else {
-                const newtext = JSON.stringify(message.content).slice(1, -1).replace(/\*\*/g, '');
-                translate(newtext, { to: 'en' }).then(res => {
-                    if (res.from.language.iso !== 'en' && res.from.language.iso !== '' && ISO6391.getName(res.from.language.iso) !== '' && res.from.language.iso !== null && res.text.toLowerCase() !== newtext.toLowerCase()) {
-                            message.channel.send(`**${message.author.username}** said: **${res.text}**\n\n**Text was translated from ${ISO6391.getName(res.from.language.iso)} to English**`).catch(() => {
-                            message.channel.send(`:x: **ERROR** | An error ocurred when trying to translate message. Please try again later!`)
-                        });
-                    }
-                });
-            }
-        } catch (error) {
-            console.log('Transcription error:', error);
-        }
-    }
-    // ----------------------------------------------[ END OF TRANSLATOR ]----------------------------------------------------
     // ----------------------------------------------[ SUGGESTIONS ]-----------------------------------------------------------
     if (message.guild) {
         let suggestionchannel = await await db.get(`LogsSetup_${message.guild.id}.suggestionchannel`)
@@ -130,6 +89,41 @@ module.exports.execute = async (bot, message) => {
         }
     }
     // -----------------------------------------------[ END OF SUGGESTIONS ]---------------------------------------------------
+    // ----------------------------------------------[ TRANSLATOR ]-----------------------------------------------------------
+    if (!message.author.bot) {
+        try {
+            if (!(message.attachments.size === 0)) {
+                const attachment = message.attachments.first();
+                if (attachment.contentType.includes('image')) return;
+                const response = await axios.get(attachment.url, { responseType: 'arraybuffer' });
+                const opusBuffer = Buffer.from(response.data);
+                const mp3Buffer = await bufferToMp3(opusBuffer);
+                const file = new File([mp3Buffer], 'converted.mp3', { type: 'audio/mp3' });
+
+                const result = await openai.audio.transcriptions.create({
+                    file,
+                    model: 'whisper-1',
+                });
+
+                message.channel.send(`**${message.author.username}** said: **${result.text}**\n\n**Text was transcribed from Audio**`)
+            }
+            if (message.content.startsWith('.') || message.content.startsWith('-')) {
+                const decoded = morse.decode(message.content);
+                message.channel.send(`**${message.author.username}** said: **${decoded}**\n\n**Text was translated from Morse Code to English**`)
+            } else {
+                const newtext = JSON.stringify(message.content).slice(1, -1).replace(/\*\*/g, '');
+                const res = await translate(newtext, {to: 'en', forceTo: true, autoCorrect: true});
+            
+                if (!res.from.language || res.from.language.iso === 'en') return;
+                    if (res.from.language.iso !== 'en' && res.from.language.iso !== '' && ISO6391.getName(res.from.language.iso) !== '' && res.from.language.iso !== null && res.text.toLowerCase() !== newtext.toLowerCase()) {
+                        message.channel.send(`**${message.author.username}** said: **${res.text}**\n\n**Text was translated from ${ISO6391.getName(res.from.language.iso)} to English**`)
+                    }
+            }
+        } catch (error) {
+            return;
+        }
+    }
+    // ----------------------------------------------[ END OF TRANSLATOR ]----------------------------------------------------
     // -----------------------------------------------[ AUTO-MOD ANTI-SPAM ABUSE ]--------------------------------------------------------------------------------------------
     if (message.author.id != bot.user.id) {
       
@@ -848,7 +842,7 @@ module.exports.execute = async (bot, message) => {
 
                     let newxp = await db.get(`Levels_${message.guild.id}_${message.author.id}.xp`)
                     let newlevel = await db.get(`Levels_${message.guild.id}_${message.author.id}.level`)
-
+                    
                     if (newlevel == 15) return message.reply(`You reached the **Max level ${newlevel}!** You can't earn anymore levels!`).then(msg => {
                         setTimeout(() => {
                             msg.delete().catch(() => {

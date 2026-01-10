@@ -7,7 +7,7 @@ const {
     MessageButton,
 } = require('discord.js')
 
-const noblox = require('noblox.js')
+const roblox = require('noblox.js')
 require('dotenv').config();
 const { SlashCommandBuilder } = require('@discordjs/builders')
 const { QuickDB } = require("quick.db");
@@ -49,11 +49,11 @@ module.exports = {
             const shoutmessage = interaction.options.getString('message')
             try {
                 let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
-                await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
+                await roblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
                   console.log(err)
                 })
-                console.log((await noblox.getAuthenticatedUser()).name)
-                noblox.shout(groupid, shoutmessage || "").then(async () => {
+                console.log((await roblox.getAuthenticatedUser()).name)
+                roblox.shout(groupid, shoutmessage || "").then(async () => {
                 interaction.editReply({ content: `Successfully Posted Shout to the Roblox Group!\n**This message will Auto-Delete in 10 seconds!**`,
             }).then(
                 setTimeout(() => {
@@ -62,13 +62,13 @@ module.exports = {
                   })
               }, 10000)
                 )
-    let avatar = await noblox.getPlayerThumbnail(`${(await noblox.getAuthenticatedUser()).id}`, "48x48", "png", true, "headshot");
+    let avatar = await roblox.getPlayerThumbnail(`${(await roblox.getAuthenticatedUser()).id}`, "48x48", "png", true, "headshot");
       let avatarurl = avatar[0].imageUrl;
               let embed = new EmbedBuilder()
                   .setTitle(`**Rank Management!**`)
-                  .setDescription(`**Username:**\n${(await noblox.getAuthenticatedUser()).name}\n**UserId:**\n${(await noblox.getAuthenticatedUser()).id}\n**Rank Management Type:**\nShout\n**Shout Message:**\n${shoutmessage || '""'}\n**Command Used By:**`)
+                  .setDescription(`**Username:**\n${(await roblox.getAuthenticatedUser()).name}\n**UserId:**\n${(await roblox.getAuthenticatedUser()).id}\n**Rank Management Type:**\nShout\n**Shout Message:**\n${shoutmessage || '""'}\n**Command Used By:**`)
                   .setColor('Green')
-                  .setAuthor({ name: `${(await noblox.getAuthenticatedUser()).name}`, iconURL: avatarurl })
+                  .setAuthor({ name: `${(await roblox.getAuthenticatedUser()).name}`, iconURL: avatarurl })
                   .setFooter({ text: `${interaction.member.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: interaction.member.user.displayAvatarURL() })
                   .setTimestamp(Date.now());
               interaction.channel.send({ embeds: [embed] }).then(message => {

@@ -34,6 +34,7 @@ module.exports.execute = async(bot, member) => {
           if (kickLog) {
             const { executor, reason } = kickLog;
             const logchannel = bot.guilds.cache.get(`${member.guild.id}`).channels.cache.get(`${serverlogs}`)
+            if (!logchannel) return;
             const embed = new EmbedBuilder()
             .setTitle(`**Server Audit Logs**`)
             .setDescription(`${executor} kicked ${member.user} from ${member.guild.name} for ${reason || "No Reason Provided!"}`)
@@ -44,6 +45,7 @@ module.exports.execute = async(bot, member) => {
             logchannel.send({ embeds: [embed] })
           } else {
             const logchannel = bot.guilds.cache.get(`${member.guild.id}`).channels.cache.get(`${serverlogs}`)
+            if (!logchannel) return;
             const embed = new EmbedBuilder()
             .setTitle(`**Server Audit Logs**`)
             .setDescription(`<@${member.user.id}> has lefted the ${member.guild.name} server!`)

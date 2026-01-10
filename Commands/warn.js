@@ -52,6 +52,8 @@ module.exports = {
                   })
               }, 10000)
           )*/
+            bot.application.fetch().then(async application => {
+            const isBotOwner = interaction.member.id === application.owner.ownerId;
             const username = interaction.options.getUser('username');
             const reason = interaction.options.getString('reason') || "No Reason Provided!";
             try {
@@ -71,7 +73,7 @@ module.exports = {
                       })
                   }, 10000)
                     )
-                  if (!interaction.member.permissions.any([PermissionsBitField.Flags.ModerateMembers])) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                  if (!(interaction.member.permissions.any([PermissionsBitField.Flags.ModerateMembers]) || isBotOwner)) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                       interaction.deleteReply().catch(() => {
                         return;
@@ -85,7 +87,7 @@ module.exports = {
                       })
                   }, 10000)
                     )
-                  if (username.moderatable) return interaction.editReply(`:x: **ERROR** | I can't warn ${username} because they have higher permission levels over me!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                  if (!isBotOwner || username.moderatable) return interaction.editReply(`:x: **ERROR** | I can't warn ${username} because they have higher permission levels over me!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                       interaction.deleteReply().catch(() => {
                         return;
@@ -99,14 +101,14 @@ module.exports = {
                       })
                   }, 10000)
                     )
-                    if (interaction.guild.members.me.roles.highest.position <= user.roles.highest.position) return interaction.editReply(`:x: **ERROR** | I can't Warn ${username} because they have higher permission levels over me!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                    if (interaction.guild.members.me.roles.highest.position <= user.roles.highest.position && !isBotOwner) return interaction.editReply(`:x: **ERROR** | I can't Warn ${username} because they have higher permission levels over me!\n**This message will Auto-Delete in 10 seconds!**`).then(
                       setTimeout(() => {
                           interaction.deleteReply().catch(() => {
                             return;
                           })
                       }, 10000)
                   )
-                  if (interaction.member.roles.highest.position <= user.roles.highest.position) return interaction.editReply(`:x: **ERROR** | You can't Warn ${username} because they are a Higher Rank than you!\n**This message will Auto-Delete in 10 seconds!**`).then(
+                  if (interaction.member.roles.highest.position <= user.roles.highest.position && !isBotOwner) return interaction.editReply(`:x: **ERROR** | You can't Warn ${username} because they are a Higher Rank than you!\n**This message will Auto-Delete in 10 seconds!**`).then(
                     setTimeout(() => {
                         interaction.deleteReply().catch(() => {
                           return;
@@ -174,5 +176,6 @@ if (!Array.isArray(warningIds)) {
             } catch (error) {
                 console.log(error)
             }
+          })
         },
 }

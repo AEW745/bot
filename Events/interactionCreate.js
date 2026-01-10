@@ -1,9 +1,9 @@
-const { Client, PermissionsBitField, InteractionType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, MessageFlags, ActivityType } = require('discord.js');
+const { Client, PermissionsBitField, InteractionType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, MessageFlags, ActivityType, ChannelSelectMenuBuilder, ChannelSelectMenuComponent, LabelBuilder } = require('discord.js');
 
 const { QuickDB } = require("quick.db");
 const db = new QuickDB();
 
-const noblox = require('noblox.js');
+const roblox = require('noblox.js');
 const { validateInputTools } = require('openai/lib/ResponsesParser.js');
 
 /**
@@ -15,10 +15,10 @@ const { validateInputTools } = require('openai/lib/ResponsesParser.js');
 module.exports.execute = async(bot, interaction) => {
 async function getRobloxUser(username) {
   try {
-    const id = await noblox.getIdFromUsername(username);
+    const id = await roblox.getIdFromUsername(username);
   if (!id) return null;
 
-    const displayname = await noblox.getUserInfo(id);
+    const displayname = await roblox.getUserInfo(id);
 
     return { id, username: displayname.name, displayName: displayname.displayName };
   } catch {
@@ -50,7 +50,7 @@ if (interaction.isAutocomplete()) {
         // Get bot user
         let bot;
         try {
-            bot = await noblox.getAuthenticatedUser();
+            bot = await roblox.getAuthenticatedUser();
         } catch {
             return interaction.respond([]);
         }
@@ -58,22 +58,22 @@ if (interaction.isAutocomplete()) {
         // Get bot role safely
         let botRank = 0;
         try {
-            botRank = await noblox.getRankInGroup(RobloxGroup, bot.id);
+            botRank = await roblox.getRankInGroup(RobloxGroup, bot.id);
         } catch {}
 
         let botRole = { id: -1, name: "" };
         try {
-            botRole = await noblox.getRole(RobloxGroup, botRank);
+            botRole = await roblox.getRole(RobloxGroup, botRank);
         } catch {}
 
-        const groupInfo = await noblox.getGroup(RobloxGroup);
-        const ownerRank = await noblox.getRankInGroup(RobloxGroup, groupInfo.owner.userId);
-        const ownerRole = await noblox.getRole(RobloxGroup, ownerRank);
+        const groupInfo = await roblox.getGroup(RobloxGroup);
+        const ownerRank = await roblox.getRankInGroup(RobloxGroup, groupInfo.owner.userId);
+        const ownerRole = await roblox.getRole(RobloxGroup, ownerRank);
 
         // Get list of roles
         let groupRoles = [];
         try {
-            groupRoles = await noblox.getRoles(RobloxGroup);
+            groupRoles = await roblox.getRoles(RobloxGroup);
         } catch {
             return interaction.respond([]);
         }
@@ -147,7 +147,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
         const user = await getRobloxUser(usernameOption);
         if (!user) return interaction.respond([]);
 
-        const info = await noblox.getUserInfo(user.id);
+        const info = await roblox.getUserInfo(user.id);
 
         return interaction.respond([
             { name: "Display Name", value: info.displayName },
@@ -283,36 +283,41 @@ if (commandsWithUsername.includes(interaction.commandName)) {
               const modal = new ModalBuilder()
             .setCustomId('setuplogsmodal')
             .setTitle('Logs Setup')
-            .addComponents([
-              new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                  .setCustomId('setshoutchannel')
-                  .setLabel('Roblox Group Shout Channel ID:')
-                  .setStyle(TextInputStyle.Short)
-                  .setRequired(true),
+            .addLabelComponents([
+            new LabelBuilder()
+            .setLabel('Shout Channel')
+             .setChannelSelectMenuComponent(
+              new ChannelSelectMenuBuilder()
+              .setCustomId('setshoutchannel')
+              .setPlaceholder('Roblox Group Shout Channel ID:')
+              .setRequired(true),
+            ),
+              new LabelBuilder()
+              .setLabel('Logs Channel')
+              .setChannelSelectMenuComponent(
+              new ChannelSelectMenuBuilder()
+              .setCustomId('setserverlogchannel')
+              .setPlaceholder('Discord Logs Channel ID:')
+              .setRequired(true),
               ),
-              new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                  .setCustomId('setserverlogchannel')
-                  .setLabel('Discord Logs Channel ID:')
-                  .setStyle(TextInputStyle.Short)
-                  .setRequired(true)
+              new LabelBuilder()
+              .setLabel('Suggestions Channel')
+              .setChannelSelectMenuComponent(
+              new ChannelSelectMenuBuilder()
+              .setCustomId('setsuggestionchannel')
+              .setPlaceholder('Suggestions Channel ID:')
+              .setRequired(true),
               ),
-              new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                  .setCustomId('setsuggestionchannel')
-                  .setLabel('Suggestions Channel ID:')
-                  .setStyle(TextInputStyle.Short)
-                  .setRequired(true)
-              ),
-              new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                  .setCustomId('setticketchannel')
-                  .setLabel('Ticket Channel ID:')
-                  .setStyle(TextInputStyle.Short)
-                  .setRequired(true)
-              ),
-            ]);
+              new LabelBuilder()
+              .setLabel('Ticket Channel')
+              .setChannelSelectMenuComponent(
+              new ChannelSelectMenuBuilder()
+              .setCustomId('setticketchannel')
+              .setPlaceholder('Ticket Channel ID:')
+              .setRequired(true)
+              )
+            ])
+
             await interaction.showModal(modal);
               }
     }
@@ -361,7 +366,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
               const response = interaction.fields.getTextInputValue('approveinput');
                 await interaction.deferReply();
                 if (!interaction.member.permissions.any([PermissionsBitField.Flags.Administrator])) return interaction.editReply(`:x: **ERROR** | You don't have permission to Approve this application!`)
-                  const RobloxUser = await noblox.getIdFromUsername(response).catch(() => {
+                  const RobloxUser = await roblox.getIdFromUsername(response).catch(() => {
                   return interaction.editReply(`:x: **ERROR** | ${response} does not exist! Please try another username!`).then(msg => {
                     setTimeout(() => {
                       msg.deleteReply().catch(() => {
@@ -381,7 +386,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
               const response = interaction.fields.getTextInputValue('denyinput');
                await interaction.deferReply();
                if (!interaction.member.permissions.any([PermissionsBitField.Flags.Administrator])) return interaction.editReply(`:x: **ERROR** | You don't have permission to Deny this application!`).then(msg => { setTimeout(() => { msg.deleteReply().catch(() => { return; })}, 10000)})
-                 const RobloxUser = await noblox.getIdFromUsername(response).catch(() => {
+                 const RobloxUser = await roblox.getIdFromUsername(response).catch(() => {
                   return interaction.editReply(`:x: **ERROR** | ${response} does not exist! Please try another username!`).then(msg => {
                     setTimeout(() => {
                       msg.deleteReply().catch(() => {
@@ -413,13 +418,44 @@ if (commandsWithUsername.includes(interaction.commandName)) {
               })
               await db.set(`ServerSetup_${interaction.guild.id}`, { rblxcookie: response, groupid: response2, minrank: response3, gameid: response4})
               if (response) {
-              await noblox.setCookie(response, interaction.guild.id).then(async (success) => {
+              await roblox.setCookie(response, interaction.guild.id).then(async (success) => {
                 if (success) {
               bot.user.setPresence({ activities: [{ name: `Watching ${bot.guilds.cache.size} servers!`, type: ActivityType.Watching }], status: 'dnd'})
-              const CurrentUser = (await noblox.getAuthenticatedUser()).name;
+              const CurrentUser = (await roblox.getAuthenticatedUser()).name;
               console.log(`${CurrentUser} Logged in.`)
               if (!CurrentUser) return;
               interaction.guild.members.me.setNickname(CurrentUser);
+
+              const RobloxRoles = await roblox.getRoles(response2)
+              const DiscordRoles = interaction.guild.roles.cache;
+              const botinfo = (await roblox.getAuthenticatedUser()).id
+              const botRank = await roblox.getRankInGroup(response2, botinfo)
+              const botRole = await roblox.getRole(response2, botRank);
+              const groupInfo = await roblox.getGroup(response2);
+              const ownerRank = await roblox.getRankInGroup(response2, groupInfo.owner.userId);
+              const ownerRole = await roblox.getRole(response2, ownerRank);
+
+              const blocked = new Set(["guest", botRole.name.toLowerCase(), ownerRole.name.toLowerCase()]);
+
+              const discordRoleNames = new Set(
+                DiscordRoles.map(role => role.name.toLowerCase())
+              );
+
+              const createdRoles = [];
+
+                  for (const RobloxRole of RobloxRoles) {
+                    const roleName = RobloxRole.name.toLowerCase();
+
+                    if (blocked.has(roleName)) continue;
+                    if (discordRoleNames.has(roleName)) continue;
+
+                    const role = await interaction.guild.roles.create({
+                      name: RobloxRole.name,
+                      reason: 'Synced from Roblox group'
+                    });
+
+                    createdRoles.push(role.name);
+                  }
                 }
               })
               }
@@ -436,11 +472,16 @@ if (commandsWithUsername.includes(interaction.commandName)) {
   
             if (interaction.customId === 'setuplogsmodal') { // Log settings were submitted so save the settings to that specific server. Useful for handling multi-guilds.
               await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-              const response = interaction.fields.getTextInputValue('setshoutchannel');
-              const response2 = interaction.fields.getTextInputValue('setserverlogchannel');
-              const response3 = interaction.fields.getTextInputValue('setsuggestionchannel');
-              const response4 = interaction.fields.getTextInputValue('setticketchannel');
-              if (containsNumber(response) && containsNumber(response2) && containsNumber(response3) && containsNumber(response4)) {
+              const response = interaction.fields.getSelectedChannels('setshoutchannel');
+              const channel = response.first();
+              const response2 = interaction.fields.getSelectedChannels('setserverlogchannel');
+              const channel2 = response2.first();
+              const response3 = interaction.fields.getSelectedChannels('setsuggestionchannel');
+              const channel3 = response3.first();
+              const response4 = interaction.fields.getSelectedChannels('setticketchannel');
+              const channel4 = response4.first();
+              console.log(channel3.id)
+              if (containsNumber(channel.id) && containsNumber(channel2.id) && containsNumber(channel3.id) && containsNumber(channel4.id)) {
               await interaction.editReply(`✅ **SUCCESS** | Logs have been successfully configured!\nThis message will auto-delete in 5 seconds!`).then(() => {
                 setTimeout(() => {
                  interaction.deleteReply().catch(() => {
@@ -448,19 +489,19 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                  })
                 }, 5000)
               })
-              await db.set(`LogsSetup_${interaction.guild.id}`, { shoutchannel: response, serverlogs: response2, suggestionchannel: response3, ticketchannel: response4 })
+              await db.set(`LogsSetup_${interaction.guild.id}`, { shoutchannel: channel.id, serverlogs: channel2.id, suggestionchannel: channel3.id, ticketchannel: channel4.id })
               const RobloxGroup = await db.get(`ServerSetup_${interaction.guild.id}.groupid`);
               const RobloxShouts = await db.get(`LogsSetup_${interaction.guild.id}.shoutchannel`)
-              let onShout = noblox.onShout(Number(RobloxGroup));
+              let onShout = roblox.onShout(Number(RobloxGroup));
               if ((RobloxGroup && RobloxShouts)) {
               onShout.on('data', async function(post) {
-                  const group = await noblox.getGroup(Number(RobloxGroup)).catch(() => {
+                  const group = await roblox.getGroup(Number(RobloxGroup)).catch(() => {
                     return
                   })
                   if (!group) return
                   let groupName = group.name;
                 if (!post.poster) return;
-              let avatar = await noblox.getPlayerThumbnail(post.poster.userId, "48x48", "png", true, "headshot")
+              let avatar = await roblox.getPlayerThumbnail(post.poster.userId, "48x48", "png", true, "headshot")
               let avatarurl = avatar[0].imageUrl;
               const shoutchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${RobloxShouts}`)
               const embed = new EmbedBuilder()
@@ -502,16 +543,16 @@ if (commandsWithUsername.includes(interaction.commandName)) {
               
               let RobloxCookie = await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)
               let ServerLogs = await db.get(`LogsSetup_${interaction.guild.id}.serverlogs`)
-              let onAudit = noblox.onAuditLog(Number(RobloxGroup), RobloxCookie)
+              let onAudit = roblox.onAuditLog(Number(RobloxGroup), RobloxCookie)
               if ((RobloxCookie && ServerLogs)) {
               onAudit.on('data', async function(data) {
-                const group = await noblox.getGroup(Number(RobloxGroup)).catch(() => {
+                const group = await roblox.getGroup(Number(RobloxGroup)).catch(() => {
                   return
                 });
                 if (!group) return;
                 let groupName = group.name;
                 if (data.actionType === 'Ban Member') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -525,7 +566,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Unban Member') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -539,7 +580,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Remove Member') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -553,7 +594,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Change Rank') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -567,7 +608,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Post Status') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -581,7 +622,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Configure Group Game') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -595,7 +636,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Spend Group Funds') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
                       
               
@@ -611,7 +652,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Delete Post') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -625,7 +666,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Delete Ally') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -639,7 +680,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Send Ally Request') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -653,7 +694,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Accept Ally Request') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
                       
               
@@ -668,7 +709,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Decline Ally Request') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -683,7 +724,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Configure Badge') {
                   if (data.description.Type === 0) {
-                    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                    let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                     let avatarurl = avatar[0].imageUrl;
               
                     const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -697,7 +738,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                       .setTimestamp(Date.now())
                     logchannel.send({ embeds: [embed] })
                   } else if (data.description.Type === 1) {
-                    let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                    let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                     let avatarurl = avatar[0].imageUrl;
               
                     const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -712,7 +753,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     logchannel.send({ embeds: [embed] })
                   }
                 } else if (data.actionType === 'Create Items') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -726,7 +767,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Create Group Asset') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -740,7 +781,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Update Group Asset') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -754,7 +795,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Accept Join Request') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -768,7 +809,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Decline Join Request') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -782,7 +823,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Leave Group') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)
@@ -796,7 +837,7 @@ if (commandsWithUsername.includes(interaction.commandName)) {
                     .setTimestamp(Date.now())
                   logchannel.send({ embeds: [embed] })
                 } else if (data.actionType === 'Join Group') {
-                  let avatar = await noblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
+                  let avatar = await roblox.getPlayerThumbnail(data.actor.user.userId, "48x48", "png", true, "headshot")
                   let avatarurl = avatar[0].imageUrl;
               
                   const logchannel = bot.guilds.cache.get(`${interaction.guild.id}`).channels.cache.get(`${ServerLogs}`)

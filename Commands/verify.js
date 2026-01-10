@@ -14,7 +14,7 @@ const {
     PermissionsBitField,
 } = require('discord.js')
 
-const noblox = require('noblox.js')
+const roblox = require('noblox.js')
 require('dotenv').config();
 const { QuickDB } = require("quick.db");
 const db = new QuickDB();
@@ -57,6 +57,7 @@ module.exports = {
          * @param {CommandInteraction} interaction
          */
         async slashexecute(bot, interaction) {
+            try {
             let serversetup = await db.get(`ServerSetup_${interaction.guild.id}`)
             await interaction.deferReply({ephemeral: true});
             if (!serversetup) return interaction.editReply(`**:x: ERROR** | This a ROBLOX Command. Roblox Commands haven't been setup! Please ask the Owner to setup the bot for Roblox Commands!`).then(
@@ -94,12 +95,12 @@ module.exports = {
                     //if (method === 'false') return interaction.editReply(`:warning: | **Code Verification has been disabled due to potential bugs! Please use the Game Verification Method!**`)
                 try {
                     let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
-                    await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
+                    await roblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
                         console.log(err)
                     })
-                    id = await noblox.getIdFromUsername(username)
-                    rank = await noblox.getRankInGroup(groupid, id)
-                    role1 = await noblox.getRole(groupid, rank)
+                    id = await roblox.getIdFromUsername(username)
+                    rank = await roblox.getRankInGroup(groupid, id)
+                    role1 = await roblox.getRole(groupid, rank)
                 } catch (error) {
                     return interaction.editReply({ content: `**${username}** is not a Valid username! Please enter a Valid username!\n**This message will Auto-Delete in 10 seconds!**`}).then(
                         setTimeout(() => {
@@ -148,10 +149,10 @@ const collector = interaction.channel.createMessageComponentCollector(filter, { 
         })
       }, 5000)
   )
-        await noblox.getIdFromUsername(username).then(async foundUser => {
+        await roblox.getIdFromUsername(username).then(async foundUser => {
             const UserId = foundUser;
-            const name = await noblox.getUsernameFromId(UserId);
-        let information = await noblox.getBlurb(UserId)
+            const name = await roblox.getUsernameFromId(UserId);
+        let information = await roblox.getBlurb(UserId)
             if (information.includes(string)) {
                 let embed2 = new EmbedBuilder()
                 .setTitle(`**${i.guild.name} Verification!**`)
@@ -263,8 +264,8 @@ interaction.deleteReply().catch((err) => {
 }, 5000)
 )
         let gameid = await db.get(`ServerSetup_${interaction.guild.id}.gameid`)
-        const userId = await noblox.getIdFromUsername(username);
-        const name = await noblox.getUsernameFromId(userId);
+        const userId = await roblox.getIdFromUsername(username);
+        const name = await roblox.getUsernameFromId(userId);
 let embed = new EmbedBuilder()
 .setTitle(`**${interaction.guild.name} Verification!**`)
 .setColor('Yellow')
@@ -287,6 +288,9 @@ if (interaction.member.manageable) {
     await db.push(`Verification_${interaction.guild.id}_${userId}.discordnick`, nickname)
 }
 }
+            } catch (err) {
+                console.log(err)
+            }
             } catch (err) {
                 console.log(err)
             }

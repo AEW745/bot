@@ -14,7 +14,7 @@ const {
     PermissionsBitField,
 } = require('discord.js')
 
-const noblox = require('noblox.js')
+const roblox = require('noblox.js')
 require('dotenv').config();
 const { QuickDB } = require("quick.db");
 const db = new QuickDB();
@@ -54,12 +54,12 @@ module.exports = {
                 let role1;
                 try {
                     let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
-                    await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
+                    await roblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
                         console.log(err)
                     })
-                    id = await noblox.getIdFromUsername(username)
-                    rank = await noblox.getRankInGroup(groupid, id)
-                    role1 = await noblox.getRole(groupid, rank)
+                    id = await roblox.getIdFromUsername(username)
+                    rank = await roblox.getRankInGroup(groupid, id)
+                    role1 = await roblox.getRole(groupid, rank)
                 } catch (error) {
                     return interaction.editReply({ content: `**${username}** is not a Valid username! Please enter a Valid username!\n**This message will Auto-Delete in 10 seconds!**`}).then(
                     setTimeout(() => {
@@ -83,8 +83,8 @@ module.exports = {
                 
                 let findRole = "Verified"
                 let findRole2 = role1.name
-                const role = await interaction.guild.roles.cache.find(r => r.name.includes(findRole))
-                const role2 = await interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
+                const role = interaction.guild.roles.cache.find(r => r.name.includes(findRole))
+                const role2 = interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
                 const botHighestRole = interaction.guild.members.me.roles.highest;
 
                 if (interaction.member && role && role2) {

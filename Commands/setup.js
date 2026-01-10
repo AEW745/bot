@@ -14,7 +14,7 @@ const {
     PermissionsBitField,
 } = require('discord.js')
 
-const noblox = require('noblox.js')
+const roblox = require('noblox.js')
 require('dotenv').config();
 const { QuickDB } = require("quick.db");
 const db = new QuickDB();
@@ -39,7 +39,7 @@ module.exports = {
 
                 bot.application.fetch().then(async application => {
 
-  const isBotOwner = interaction.member.id === application.owner.id
+  const isBotOwner = interaction.member.id === application.owner.ownerId;
   const isGuildOwner = interaction.member.id === interaction.guild.ownerId;
     if (!(isGuildOwner || isBotOwner)) return interaction.editReply(`:x: **ERROR** | You don't have permission to use this command!`)
         const embed = new EmbedBuilder()

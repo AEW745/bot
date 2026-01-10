@@ -14,7 +14,7 @@ const {
     PermissionsBitField,
 } = require('discord.js')
 
-const noblox = require('noblox.js')
+const roblox = require('noblox.js')
 require('dotenv').config();
 const { QuickDB } = require("quick.db");
 const db = new QuickDB();
@@ -59,12 +59,12 @@ module.exports = {
                 try {
                
                 const groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
-                await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
+                await roblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
                     console.log(err)
                 })
-                id = await noblox.getIdFromUsername(username)
-                rank = await noblox.getRankInGroup(groupid, id)
-                role1 = await noblox.getRole(groupid, rank)
+                id = await roblox.getIdFromUsername(username)
+                rank = await roblox.getRankInGroup(groupid, id)
+                role1 = await roblox.getRole(groupid, rank)
                 } catch (error) {
                     return interaction.editReply({ content: `I can't get Roles for unverified users. Please use the **/verify** command and run this command again!\n**This message will Auto-Delete in 10 seconds!**`}).then(
                     setTimeout(() => {
@@ -76,9 +76,9 @@ module.exports = {
                 }
                 if (username && discorduser) {
                     let findRole2 = role1.name
-                    const role2 = await interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
+                    const role2 = interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
                     let findRole3 = "Verified"
-                    const role4 = await interaction.guild.roles.cache.find(r => r.name.includes(findRole3))
+                    const role4 = interaction.guild.roles.cache.find(r => r.name.includes(findRole3))
                     const role5 = member.roles.cache.filter(role => role.managed);
 
 
@@ -111,7 +111,7 @@ const hasAllRoles = roles.some(r => member.roles.cache.has(r.id || r));  // Chec
                         }
                 }
                  } catch (error) {
-                    return interaction.editReply({ content: `I don't have permission to update roles for **${username}**\n**This message will Auto-Delete in 10 seconds!**`}).then(
+                    return interaction.editReply({ content: `**${username}** already has their roles\n**This message will Auto-Delete in 10 seconds!**`}).then(
                         setTimeout(() => {
                             interaction.deleteReply().catch(() => {
                                 return;

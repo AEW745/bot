@@ -7,7 +7,7 @@ const {
     MessageButton,
 } = require('discord.js')
 
-const noblox = require('noblox.js')
+const roblox = require('noblox.js')
 require('dotenv').config();
 const { SlashCommandBuilder } = require('@discordjs/builders')
 const { QuickDB } = require("quick.db");
@@ -46,15 +46,15 @@ module.exports = {
             if (!(currentuser || userinfo)) return interaction.editReply(`:x: **ERROR** | You aren't verified! Please verify to run this command!`)
             try {
                 let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
-                await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
+                await roblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
                     console.log(err)
                 })
                 let minrank = await db.get(`ServerSetup_${interaction.guild.id}.minrank`)
                 let id;
                 let rank;
                 try{
-                id = await noblox.getIdFromUsername(username)
-                rank = await noblox.getRankInGroup(groupid, id)
+                id = await roblox.getIdFromUsername(username)
+                rank = await roblox.getRankInGroup(groupid, id)
                 } catch (error) {
                      interaction.editReply({ content: `:x: **ERROR** | **${username}** is not a Valid username! Please enter a Valid username!\n**This message will Auto-Delete in 10 seconds!**`}).then(
                         setTimeout(() => {
@@ -73,11 +73,11 @@ module.exports = {
                     }, 10000)
                     )
                 }
-                const role = await noblox.getRole(groupid, rank)
+                const role = await roblox.getRole(groupid, rank)
                 let newrank = role.rank + 1;
                 let newrole;
                 try {
-                newrole = await noblox.getRole(groupid, newrank)
+                newrole = await roblox.getRole(groupid, newrank)
             } catch (error) {
                  interaction.editReply({ content: `:x: **ERROR** | ${newrank} role ID doesn't exist in the group please make sure role ID's are in order increasing by 1!\n**This message will Auto-Delete in 10 seconds!**`}).then(
                     setTimeout(() => {
@@ -88,9 +88,9 @@ module.exports = {
                 )
             }
 
-                const groupbot = (await noblox.getAuthenticatedUser()).id
-                const botrank = await noblox.getRankInGroup(groupid, groupbot)
-                const botrole = await noblox.getRole(groupid, botrank)
+                const groupbot = (await roblox.getAuthenticatedUser()).id
+                const botrank = await roblox.getRankInGroup(groupid, groupbot)
+                const botrole = await roblox.getRole(groupid, botrank)
                 const MaxRankbelowBot = botrole.rank - 1;
                 if (role.rank === MaxRankbelowBot) {
                      interaction.editReply({ content: `:x: **ERROR** | **${username}** is at the Highest rank. You can't Promote this user!\n**This message will Auto-Delete in 10 seconds!**`}).then(
@@ -101,9 +101,9 @@ module.exports = {
                         }, 10000)
                     )
                 }
-                const currentuserid = await noblox.getIdFromUsername(currentuser)
-                const currentuserrank = await noblox.getRankInGroup(groupid, currentuserid)
-                const currentuserrole = await noblox.getRole(groupid, currentuserrank)
+                const currentuserid = await roblox.getIdFromUsername(currentuser)
+                const currentuserrank = await roblox.getRankInGroup(groupid, currentuserid)
+                const currentuserrole = await roblox.getRole(groupid, currentuserrank)
                 const userrunningcommand = currentuserrole.rank;
                 const MinRank = minrank;
                 let users = (await interaction.guild.members.fetch())
@@ -151,7 +151,7 @@ module.exports = {
                 }
             }
 
-            let avatar = await noblox.getPlayerThumbnail(id, "48x48", "png", true, "headshot");
+            let avatar = await roblox.getPlayerThumbnail(id, "48x48", "png", true, "headshot");
       let avatarurl = avatar[0].imageUrl;
                 if ((role.rank) > 1 && (role.rank) <= MaxRankbelowBot && userrunningcommand > MinRank && !(id === userinfo)) {
                   let embed = new EmbedBuilder()
@@ -161,7 +161,7 @@ module.exports = {
                   .setAuthor({ name: username, iconURL: avatarurl })
                   .setFooter({ text: `${interaction.member.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: interaction.member.user.displayAvatarURL() })
                   .setTimestamp(Date.now());
-                noblox.promote(groupid, id)
+                roblox.promote(groupid, id)
                 interaction.editReply({ content: `Successfully Promote **${username}**\n**This message will Auto-Delete in 10 seconds!**`,
             }).then(
             setTimeout(() => {

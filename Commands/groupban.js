@@ -7,7 +7,7 @@ const {
     MessageButton,
 } = require('discord.js')
 
-const noblox = require('noblox.js')
+const roblox = require('noblox.js')
 require('dotenv').config();
 const { SlashCommandBuilder } = require('@discordjs/builders')
 const { QuickDB } = require("quick.db");
@@ -58,7 +58,7 @@ module.exports = {
             let currentuser = await db.get(`RobloxInfo_${interaction.guild.id}_${interaction.member.user.id}.robloxusername`);
             try {
                 let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
-                await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
+                await roblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
                     console.log(err)
                 })
                 let minrank = await db.get(`ServerSetup_${interaction.guild.id}.minrank`)
@@ -75,9 +75,9 @@ module.exports = {
                 let rank;
                 let role;
                 try {
-                id = await noblox.getIdFromUsername(username)
-                rank = await noblox.getRankInGroup(groupid, id)
-                role = await noblox.getRole(groupid, rank)
+                id = await roblox.getIdFromUsername(username)
+                rank = await roblox.getRankInGroup(groupid, id)
+                role = await roblox.getRole(groupid, rank)
                 } catch (error) {
                     return interaction.editReply({ content: `**${username}** is not a Valid username! Please enter a Valid username!\n**This message will Auto-Delete in 10 seconds!**`}).then(
                         setTimeout(() => {
@@ -87,16 +87,16 @@ module.exports = {
                         }, 10000)
                     )
                 }
-                const groupbot = (await noblox.getAuthenticatedUser()).id
-                const botrank = await noblox.getRankInGroup(groupid, groupbot)
-                const botrole = await noblox.getRole(groupid, botrank)
-                const MaxRankforGroupBanning = botrole.rank - 2;
+                const groupbot = (await roblox.getAuthenticatedUser()).id
+                const botrank = await roblox.getRankInGroup(groupid, groupbot)
+                const botrole = await roblox.getRole(groupid, botrank)
+                const MaxRankforGroupBanning = botrole.rank - 1;
                 const MinRank = minrank;
-                const currentuserid = await noblox.getIdFromUsername(currentuser)
-                const currentuserrank = await noblox.getRankInGroup(groupid, currentuserid)
-                const currentuserrole = await noblox.getRole(groupid, currentuserrank)
+                const currentuserid = await roblox.getIdFromUsername(currentuser)
+                const currentuserrank = await roblox.getRankInGroup(groupid, currentuserid)
+                const currentuserrole = await roblox.getRole(groupid, currentuserrank)
                 const userrunningcommand = currentuserrole.rank;
-                let avatar = await noblox.getPlayerThumbnail(id, "48x48", "png", true, "headshot");
+                let avatar = await roblox.getPlayerThumbnail(id, "48x48", "png", true, "headshot");
       let avatarurl = avatar[0].imageUrl;
                 const embed = new EmbedBuilder()
                 .setTitle(`**User Group Ban!**`)
@@ -113,7 +113,7 @@ module.exports = {
                   .setFooter({ text: `${interaction.member.user.username} | This message will Auto-Delete in 5 seconds!`, iconURL: interaction.member.user.displayAvatarURL() })
                   .setTimestamp(Date.now());
                 if ((role.rank) <= MaxRankforGroupBanning && userrunningcommand > MinRank && !(id === userinfo)) {
-                noblox.ban(groupid, id)
+                roblox.ban(groupid, id)
                 interaction.editReply({ content: `:white_check_mark: **SUCCESS** | Successfully Banned **${username}** from the Roblox Group!\n**This message will Auto-Delete in 10 seconds!**`,
             }).then(
             setTimeout(() => {

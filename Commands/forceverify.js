@@ -14,7 +14,7 @@ const {
     PermissionsBitField,
 } = require('discord.js')
 
-const noblox = require('noblox.js')
+const roblox = require('noblox.js')
 require('dotenv').config();
 const { QuickDB } = require("quick.db");
 const db = new QuickDB();
@@ -69,9 +69,9 @@ module.exports = {
         const member = await interaction.guild.members.fetch(discorduser.id);
             try {
                 let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
-                const id = await noblox.getIdFromUsername(username)
-                const rank = await noblox.getRankInGroup(groupid, id)
-                const role1 = await noblox.getRole(groupid, rank)
+                const id = await roblox.getIdFromUsername(username)
+                const rank = await roblox.getRankInGroup(groupid, id)
+                const role1 = await roblox.getRole(groupid, rank)
                 if (username) {
                     interaction.editReply({ content: `:white_check_mark: **SUCCESS** | You have successfully force verified ${username}\n**This message will Auto-Delete in 10 seconds!**` }).then(
                  setTimeout(() => {

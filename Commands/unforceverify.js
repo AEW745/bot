@@ -14,7 +14,7 @@ const {
     PermissionsBitField,
 } = require('discord.js')
 
-const noblox = require('noblox.js')
+const roblox = require('noblox.js')
 require('dotenv').config();
 const { QuickDB } = require("quick.db");
 const db = new QuickDB();
@@ -56,14 +56,14 @@ module.exports = {
         const member = await interaction.guild.members.fetch(discorduser.id);
             try {
                 let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
-                await noblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
+                await roblox.setCookie(await db.get(`ServerSetup_${interaction.guild.id}.rblxcookie`)).catch((err) => {
                     console.log(err)
                 })
                 let id;
             let rank;
             try {
-            id = await noblox.getIdFromUsername(username)
-            rank = await noblox.getRankInGroup(groupid, id)
+            id = await roblox.getIdFromUsername(username)
+            rank = await roblox.getRankInGroup(groupid, id)
             } catch (error) {
                 return interaction.editReply({ content: `**${username}** is not a Valid username! Please enter a Valid username!\n**This message will Auto-Delete in 10 seconds!**`}).then(
                 setTimeout(() => {
@@ -73,7 +73,7 @@ module.exports = {
                 }, 10000)
                 )
             }
-        const role1 = await noblox.getRole(groupid, rank);
+        const role1 = await roblox.getRole(groupid, rank);
                 if (username) {
                     interaction.editReply({ content: `:white_check_mark: **SUCCESS** | You have successfully removed verification from ${username}\n**This message will Auto-Delete in 10 seconds!**` }).then(
                         setTimeout(() => {

@@ -1,7 +1,7 @@
 const {Client, EmbedBuilder} = require('discord.js');
 const {QuickDB} = require('quick.db');
 const db = new QuickDB();
-const noblox = require('noblox.js');
+const roblox = require('noblox.js');
 
 /**
  * 
@@ -30,15 +30,15 @@ module.exports.execute = async(bot, member) => {
       bot.user.setPresence({ activities: [{ name: `${bot.guilds.cache.size} servers!`, type: 3 }], status: 'dnd'})
     } else {
       if (await db.get(`RobloxInfo_${member.guild.id}_${member.user.id}`)) {
-          await noblox.setCookie(await db.get(`ServerSetup_${member.guild.id}.rblxcookie`)).catch((err) => {
+          await roblox.setCookie(await db.get(`ServerSetup_${member.guild.id}.rblxcookie`)).catch((err) => {
                 console.log(err)
               })
               let groupid = await db.get(`ServerSetup_${member.guild.id}.groupid`)
               let id = await db.get(`RobloxInfo_${member.guild.id}_${member.user.id}.robloxid`)
-              let rank = await noblox.getRankInGroup(groupid, id).catch((err) => {
+              let rank = await roblox.getRankInGroup(groupid, id).catch((err) => {
                 console.log(err)
               })
-              let role1 = await noblox.getRole(groupid, rank).catch((err) => {
+              let role1 = await roblox.getRole(groupid, rank).catch((err) => {
                 console.log(err)
               })
 

@@ -5,6 +5,7 @@ const {
     CommandInteraction,
     MessageActionRow,
     MessageButton,
+    AttachmentBuilder,
 } = require('discord.js')
 
 const { SlashCommandBuilder } = require('@discordjs/builders')
@@ -43,6 +44,10 @@ module.exports = {
             if (interaction.member.user.bot) return;
             await interaction.channel.sendTyping();
             const messages = [
+                {
+                    role: "developer",
+                    content: ""
+                },
                 { 
                     role: "system", 
                     content: "MoneyDevsRanker is a smart bot.",
@@ -53,21 +58,29 @@ module.exports = {
                 },
             ];
         
-            const completion = await openai.chat.completions.create({
-                model: 'gpt-3.5-turbo',
-                messages: messages,
+            const completion = await openai.responses.create({
+                model: 'gpt-5.2',
+                tools: [
+                    { type: "web_search" },
+                    { type: "image_generation" }
+                ],
+                tool_choice: 'auto',
+                input: messages,
                 temperature: 1,
-                max_tokens: 500,
+                max_output_tokens: 200,
+                store: true,
+                safety_identifier: interaction.member.user.username,
             })
             
-            if (completion.choices[0].finish_reason === 'length') return interaction.editReply(`:x: **ERROR** | Your message is too long to generate!`).then(
+            if (completion.output[0].status === 'length') return interaction.editReply(`:x: **ERROR** | Your message is too long to generate!`).then(
                 setTimeout(() => {
                     interaction.deleteReply().catch(() => {
                         return;
                     })
                 }, 60000)
             )
-            const advice = `${completion.choices[0].message.content}`;
+            if (completion.output[0].type === 'message') {
+            const advice = `${completion.output.at(-1).content[0].text}`;
             interaction.deleteReply()
             await interaction.channel.send(advice).then(message => {
                 setTimeout(() => {
@@ -77,6 +90,31 @@ module.exports = {
                 }, 600000)     
             }           
             )
+        } else if (completion.output[0].type === 'image_generation_call') {
+            const imagegeneration = `${completion.output[0].result}`;
+            const imagebuffer = Buffer.from(imagegeneration, "base64")
+            const attachment = new AttachmentBuilder(imagebuffer);
+            interaction.deleteReply()
+            await interaction.channel.send({ files: [attachment] }).then(message => {
+                setTimeout(() => {
+                    message.delete().catch(() => {
+                        return;
+                    });
+                }, 600000)     
+            }           
+            )
+        } else {
+            const websearch = `${completion.output.at(-1).content[0].text}`;
+            interaction.deleteReply()
+            await interaction.channel.send(websearch).then(message => {
+                setTimeout(() => {
+                    message.delete().catch(() => {
+                        return;
+                    });
+                }, 600000)     
+            }           
+            )
+        }
     } catch (err) {
         await interaction.editReply(`:x: **ERROR** | ${err.message}`)
     }

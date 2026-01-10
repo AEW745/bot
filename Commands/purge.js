@@ -113,13 +113,14 @@ module.exports = {
                   }, 10000)
                     )
 
-                       interaction.editReply({content: `:white_check_mark: **SUCCESS** | Successfully Purged **${messages.size}** messages from the Server!\n**This message will Auto-Delete in 10 seconds!**`,
-        })
+                       interaction.channel.send({content: `:white_check_mark: **SUCCESS** | Successfully Purged **${messages.size}** messages from the Server!\n**This message will Auto-Delete in 10 seconds!**`,
+        }).then(message => {
         setTimeout(() => {
-          interaction.deleteReply().catch(() => {
+          message.delete().catch(() => {
             return;
           })
       }, 10000)
+      })
                      interaction.channel.send({ embeds: [embed] }).then(message => {
                       setTimeout(() => {
                         message.delete().catch(() => {
