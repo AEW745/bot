@@ -1,7 +1,6 @@
 const { Client, EmbedBuilder, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const { SoundcloudExtractor } = require('discord-player-soundcloud');
-
  
 const { registerExtractors, initPlayer } = require("../utils/registerExtractors");
 
@@ -635,10 +634,12 @@ app.post("/confirm", async (req, res) => {
 
             // Wrong Discord user
             if (member.id !== DiscordId) continue;
-
             // Set nickname if stored
-            if (nickname) {
-                await member.setNickname(nickname).catch(() => {});
+            if (nickname[0].length < 32) {
+                await member.setNickname(nickname[0]).catch(() => {});
+            } else {
+                 const robloxname = await roblox.getUsernameFromId(User);
+                 await member.setNickname(robloxname).catch(() => {});
             }
 
             // Store Roblox info

@@ -59,13 +59,6 @@ module.exports = {
             const username = interaction.options.getString('username');
             const discorduser = interaction.options.getUser('discordusername');
             const nickname = interaction.options.getString('nickname');
-            if (nickname.length > 32) return interaction.editReply(`:x: **ERROR** | Your nickname is too long! Please choose Username or Displayname format!`).then(
-              setTimeout(() => {
-                  interaction.deleteReply().catch(() => {
-                      return;
-                  })
-              }, 10000)
-          )
         const member = await interaction.guild.members.fetch(discorduser.id);
             try {
                 let groupid = await db.get(`ServerSetup_${interaction.guild.id}.groupid`)
@@ -116,7 +109,12 @@ module.exports = {
                       })
                   }, 5000)
               })
+                if (nickname.length < 32) {
                  member.setNickname(nickname)
+                } else {
+                    const robloxname = await roblox.getUsernameFromId(id)
+                    member.setNickname(robloxname)
+                }
                  if (member && (role || role2)) {
                     const rolesToAdd = [];
                 

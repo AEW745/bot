@@ -83,8 +83,8 @@ module.exports = {
                 
                 let findRole = "Verified"
                 let findRole2 = role1.name
-                const role = interaction.guild.roles.cache.find(r => r.name.includes(findRole))
-                const role2 = interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
+                const role = await interaction.guild.roles.cache.find(r => r.name.includes(findRole))
+                const role2 = await interaction.guild.roles.cache.find(r => r.name.includes(findRole2))
                 const botHighestRole = interaction.guild.members.me.roles.highest;
 
                 if (interaction.member && role && role2) {
@@ -95,13 +95,9 @@ module.exports = {
                         rolesToRemove.push(role.id);
                     }
                 
-                    if (role2) {
                     if (interaction.member.roles.cache.has(role2.id) && role2.position < botHighestRole.position) {
                         rolesToRemove.push(role2.id);
                     }
-                } else {
-            interaction.editReply(`Please join the Roblox group to remove group role! I was only able to remove the Verified Role for now!`)
-        }
                 
                     // Remove roles if there are any to remove
                     if (rolesToRemove.length > 0) {

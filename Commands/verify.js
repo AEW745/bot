@@ -70,13 +70,6 @@ module.exports = {
             const username = interaction.options.getString('username')
             const method = interaction.options.getString('method')
             const nickname = interaction.options.getString('nickname')
-            if (nickname.length > 32) return interaction.editReply(`:x: **ERROR** | Your nickname is too long! Please choose Username or Displayname format!`).then(
-              setTimeout(() => {
-                  interaction.deleteReply().catch(() => {
-                      return;
-                  })
-              }, 10000)
-          )
             function Generate() {
            let tokenID = [];
            let randomstuff = ['cat', 'dog', 'cow', 'pig', 'rabbit', 'turtle', 'sheep'];
@@ -215,9 +208,12 @@ const collector = interaction.channel.createMessageComponentCollector(filter, { 
                     })
                   }, 5000)
               )
-                i.member.setNickname(nickname).catch((err) => {
-                    console.log(err)
-                })
+              if (nickname.length < 32) {
+                i.member.setNickname(nickname)
+              } else {
+                const robloxname = await roblox.getUsernameFromId(UserId)
+                i.member.setNickname(robloxname)
+              }
             } else {
                 let embed2 = new EmbedBuilder()
                 .setTitle(`**${i.guild.name} Verification!**`)
